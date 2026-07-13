@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雄安新区建设和交通管理局 · 协同调度中心</title>
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div id="loginView" class="login-view">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">雄</div>
+      <div class="logo-text">
+        <div class="logo-title">雄安新区建设和交通管理局</div>
+        <div class="logo-sub">协同调度中心 · 统一工作门户</div>
+      </div>
+    </div>
+    <div class="login-form">
+      <label>账号</label>
+      <input type="text" id="username" value="admin" placeholder="请输入账号">
+      <label>密码</label>
+      <input type="password" id="password" value="admin123" placeholder="请输入密码">
+      <button class="btn-login" onclick="doLogin()">登 录</button>
+    </div>
+    <div class="login-accounts">
+      快捷登录（点击自动填充，共18个账号覆盖12个处室）：
+      <div class="account-chips">
+        <code onclick="fillAccount('admin','admin123')">admin</code>
+        <code onclick="fillAccount('zhangju','zhangju123')">zhangju</code>
+        <code onclick="fillAccount('lichu','lichu123')">lichu</code>
+        <code onclick="fillAccount('wangjing','wangjing123')">wangjing</code>
+        <code onclick="fillAccount('sunjing','sunjing123')">sunjing</code>
+        <code onclick="fillAccount('zhaojiaotong','zhaojiaotong123')">zhaojiaotong</code>
+      </div>
+      <div class="account-tip">登录后可在「系统管理-用户管理」查看全部账号</div>
+    </div>
+  </div>
+  <div class="login-footer">Step 2 · 统一工作门户 &nbsp;|&nbsp; 雄安新区建设和交通管理局</div>
+</div>
+
+<!-- ============ 门户主框架 ============ -->
+<div id="portalView" class="portal" style="display:none">
+  <header class="topbar">
+    <div class="brand" onclick="navTo('/workbench')">
+      <span class="brand-mark">雄</span>
+      <span class="brand-name">协同调度中心</span>
+    </div>
+    <div class="global-search">
+      <span class="search-ico">🔍</span>
+      <input id="globalSearch" placeholder="搜索应用、事项、人员…">
+    </div>
+    <div class="topbar-right">
+      <span id="refreshDot" class="refresh-dot counting" title="数据每30秒自动刷新">30s</span>
+      <div class="bell" onclick="navTo('/messages')" title="消息中心">
+        <span class="bell-ico">🔔</span>
+        <span class="bell-badge" id="msgBadge" style="display:none">0</span>
+      </div>
+      <div class="user-box">
+        <div class="avatar" id="uAvatar">管</div>
+        <div class="user-meta">
+          <div class="user-name" id="uName">-</div>
+          <div class="user-dept" id="uDept">-</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">退出</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<!-- 加载遮罩 -->
+<div id="loading" class="loading-mask" style="display:none"><div class="spinner"></div></div>
+
+<script src="js/portal.js"></script>
+</body>
+</html>
