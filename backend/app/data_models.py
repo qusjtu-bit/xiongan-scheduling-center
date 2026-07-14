@@ -126,12 +126,14 @@ class ProjectStage(db.Model):
     plan_end_date = db.Column(db.String(16), comment='计划完成')
     actual_end_date = db.Column(db.String(16), comment='实际完成')
     status = db.Column(db.String(8), default='未开始', comment='未开始/进行中/已完成/超期')
+    resp_dept = db.Column(db.String(128), default='', comment='责任处室（可多个，逗号分隔）')
     remark = db.Column(db.String(256), default='')
 
     def to_dict(self):
         return {k: getattr(self, k) for k in [
             'id', 'project_id', 'stage_name', 'stage_order',
-            'start_date', 'plan_end_date', 'actual_end_date', 'status', 'remark'
+            'start_date', 'plan_end_date', 'actual_end_date', 'status',
+            'resp_dept', 'remark'
         ]}
 
 

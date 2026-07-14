@@ -784,27 +784,88 @@ async function runDecide(scenario) {
 /* ---------- 业务专题一张图 ---------- */
 let topicDomain = 1;  // 当前专题领域
 
+/* 跨处室业务线（来源：2026年上半年工作总结） */
 const TOPIC_CONFIG = {
-  1: { name: '城乡建设', icon: '🏗️', color: '#00d4ff',
-       desc: '聚焦工程项目全生命周期监管、建筑市场运行、绿色建筑推广、农房建设与危房改造',
-       indicators: ['cj01','cj02','cj03','cj05','cj06','cj07','cj08','cj14'],
-       dataQueries: ['proj_list', 'biz_list'],
-       warnScopes: ['工程质量安全处','城乡发展处','建筑市场处'] },
-  2: { name: '交通运输', icon: '🚌', color: '#ffb300',
-       desc: '覆盖路网运行监测、运输市场监管、公交出行服务、水运安全管理、交通基础设施',
-       indicators: ['jt01','jt02','jt03','jt05','jt06','jt09','jt10','jt14'],
-       dataQueries: ['bus_station'],
-       warnScopes: ['综合交通组'] },
-  3: { name: '水利水务', icon: '💧', color: '#69f0ae',
-       desc: '河湖治理保护、防汛排涝调度、供水排水管理、水资源配置与水生态修复',
-       indicators: ['sl01','sl02','sl04','sl06','sl08','sl11','sl12','sl13'],
-       dataQueries: ['water_list'],
-       warnScopes: ['水利组'] },
-  4: { name: '城市管理', icon: '🏙️', color: '#e040fb',
-       desc: '市容环卫作业、市政设施运维、综合管廊监控、供热燃气保障、园林绿化养护',
-       indicators: ['cg01','cg04','cg05','cg06','cg07','cg09','cg10','cg11'],
-       dataQueries: ['muni_list'],
-       warnScopes: ['城市管理处','城市建设监察处'] },
+  1: { name: '项目全生命周期', icon: '🏗️', color: '#00d4ff',
+       desc: '贯穿政务服务处→质量安全处→城乡发展处→监察处→房屋处，施工许可200+件/审批1.5日/联合验收100+项目',
+       departments: ['政务服务处','工程质量安全处','城乡发展处','城市建设监察处','房屋管理处'],
+       stats: [
+         { label: '施工许可审批', value: '200+', unit: '件' },
+         { label: '平均审批用时', value: '1.5', unit: '天' },
+         { label: '联合验收项目', value: '100+', unit: '个' },
+         { label: '新竣备楼栋', value: '90+', unit: '栋' },
+         { label: '竣备建筑面积', value: '70+', unit: '万m²' },
+         { label: '帮办服务覆盖', value: '41', unit: '个疏解项目' },
+       ],
+       metrics: [
+         { name: '施工许可月受理量', trend: [165,178,192,188,200,210], unit: '件' },
+         { name: '联合验收月办结量', trend: [11,14,18,16,19,22], unit: '件' },
+       ],
+       highlights: ['审批时间压缩至1.5天', '竣工一件事功能开发中', '全生命周期帮办服务体系初步形成', '一北片区技术底板初验完成'] },
+  2: { name: '城建综合监管', icon: '🛡️', color: '#ff5252',
+       desc: '建筑市场处+质量安全处+监察处联动，检查780次/问题闭环2774项/实名制全覆盖/137条异常线索全部闭合',
+       departments: ['建筑市场处','工程质量安全处','城市建设监察处','政策法规处'],
+       stats: [
+         { label: '现场检查', value: '780', unit: '次' },
+         { label: '发现问题', value: '2774', unit: '项(全部闭环)' },
+         { label: '实名制覆盖率', value: '100', unit: '%' },
+         { label: '异常线索核查', value: '137', unit: '条(全部闭合)' },
+         { label: '施工图审查', value: '100', unit: '%' },  // 抽查→100%审查
+         { label: '行政处罚', value: '712,146.82', unit: '元' },
+       ],
+       metrics: [
+         { name: '月度安全检查次数', trend: [110,125,135,128,142,140], unit: '次' },
+         { name: '问题整改闭环率', trend: [92,95,97,98,99,100], unit: '%' },
+       ],
+       highlights: ['变施工图抽查为100%审查', '印发“六个到位”50项实施方法', '实名制系统与银行端数据直连', '小施工安全管理11场培训1200+人次'] },
+  3: { name: '防洪排涝协同', icon: '🌊', color: '#69f0ae',
+       desc: '水利组+城管处+交通处联动，1000+防汛责任人/153处隐患整改/枣林庄枢纽+留通泵站/联排联调体系',
+       departments: ['水利组','城市管理处','综合交通处'],
+       stats: [
+         { label: '防汛责任人', value: '1000+', unit: '人' },
+         { label: '隐患整改', value: '153', unit: '处' },
+         { label: '泵站排涝能力', value: '3', unit: '座(主汛期前)' },
+         { label: '白洋淀补水', value: '10+', unit: '亿m³' },
+         { label: '河湖巡查', value: '14', unit: '次(涉河问题305个)' },
+         { label: '在建防洪项目', value: '6+', unit: '个' },
+       ],
+       metrics: [
+         { name: '白洋淀水位(m)', trend: [6.8, 6.9, 7.0, 7.2, 7.5, 7.6], unit: 'm' },
+         { name: '泵站排涝流量', trend: [0,0,0,45,60,80], unit: 'm³/s' },
+       ],
+       highlights: ['雄安干渠全线贯通', '应急水源工程试运行', '新增供水4万吨/日', '留通/昝岗西泵站主汛期前达标'] },
+  4: { name: '绿色降碳创新', icon: '🌱', color: '#ffb300',
+       desc: '城乡发展处+质量安全处+信息化处协同，45项示范/装配式32%/“7+1”指标体系/BIM4审查/碳排管理平台一期建成',
+       departments: ['城乡发展处','工程质量安全处','信息化处'],
+       stats: [
+         { label: '绿建示范项目', value: '45', unit: '项' },
+         { label: '装配式建造占比', value: '32', unit: '%' },
+         { label: '三星级绿建', value: '100', unit: '%(政府投资)' },
+         { label: '碳排放测评试点', value: '13', unit: '个' },
+         { label: '建材码覆盖', value: '135', unit: '种材料' },
+         { label: '星级智慧工地', value: '25', unit: '个' },
+       ],
+       metrics: [
+         { name: '装配式建造占比(%)', trend: [25,28,30,31,32,32], unit: '%' },
+         { name: '绿建示范项目(累计)', trend: [25,32,38,40,43,45], unit: '项' },
+       ],
+       highlights: ['碳排管理平台一期建成', 'BIM4审查以图模一致为核心', '建筑垃圾全流程线上监管', '城建档案数字平台试运行'] },
+  5: { name: '城市运营一网统管', icon: '🏙️', color: '#e040fb',
+       desc: '城管处+信息化处+各业务处室，运管服平台处置2万+事件/71家物业全覆盖/29.7万户安检/7000km管网检测',
+       departments: ['城市管理处','信息化处','房屋管理处','综合交通处','水利组'],
+       stats: [
+         { label: '运管服处置事件', value: '20000+', unit: '件' },
+         { label: '物业服务企业', value: '71', unit: '家(全覆盖)' },
+         { label: '燃气入户安检', value: '29.7万', unit: '户' },
+         { label: '燃气管网检测', value: '7000+', unit: 'km' },
+         { label: '垃圾分类设施', value: '75', unit: '处(新增)' },
+         { label: '供水保障', value: '4', unit: '万吨/日(新增)' },
+       ],
+       metrics: [
+         { name: '运管服月处置事件', trend: [2800,3200,3500,3300,3700,3500], unit: '件' },
+         { name: '供热优质率(≥21℃)', trend: [91,92,93,94,95,95], unit: '%' },
+       ],
+       highlights: ['“一委一办一平台”机制做实', '容东19个社区物业重新选聘', '外摆位管理办法印发', '721工作法全面推行'] },
 };
 
 async function renderTopic() {
@@ -812,7 +873,7 @@ async function renderTopic() {
   const tabs = Object.entries(TOPIC_CONFIG).map(([k, v]) =>
     `<div class="subtab ${+k===topicDomain?'active':''}" onclick="topicDomain=${k};renderTopic()">${v.icon} ${v.name}</div>`).join('');
 
-  let html = `<div class="page-head"><div class="page-title">🗺️ 业务专题一张图<small>${cfg.desc}</small></div></div>
+  let html = `<div class="page-head"><div class="page-title">🗺️ 业务专题一张图<small>跨处室业务线 · 来源：2026年上半年工作总结</small></div></div>
     <div class="tabs">${tabs}</div><div id="topicBody"></div>`;
   document.getElementById('content').innerHTML = html;
   await loadTopicContent(cfg);
@@ -820,88 +881,63 @@ async function renderTopic() {
 
 async function loadTopicContent(cfg) {
   const body = document.getElementById('topicBody');
-  body.innerHTML = '<div class="empty">加载中...</div>';
+  // 渲染处室协作标签
+  const deptChips = cfg.departments.map(d => `<span class="dept-chip" style="font-size:11px">${d}</span>`).join(' ');
+  
+  // 关键指标卡
+  const statCards = cfg.stats.map(s => `
+    <div class="tp-stat-card">
+      <div class="tp-stat-val">${s.value}<small>${s.unit}</small></div>
+      <div class="tp-stat-label">${s.label}</div>
+    </div>`).join('');
 
-  // 并行加载指标和主题数据
-  const [indData, warnData] = await Promise.all([
-    api('/api/indicators?domain=' + topicDomain),
-    api('/api/messages?msg_type=2'),
-  ]);
-
-  // 指标值批量获取
-  const indVals = {};
-  if (indData && indData.code === 200) {
-    for (const ind of (indData.data || [])) {
-      if (!cfg.indicators.includes(ind.code)) continue;
-      const vd = await api('/api/indicators/' + ind.code + '/data');
-      if (vd && vd.code === 200 && vd.data && vd.data.latest) {
-        indVals[ind.code] = vd.data.latest;
-      }
-    }
-  }
-
-  // 主题数据
-  const dataResults = {};
-  for (const code of cfg.dataQueries) {
-    const d = await api('/api/data/' + code);
-    if (d && d.code === 200) dataResults[code] = d.data;
-  }
-
-  // 筛选相关预警
-  const warnings = [];
-  if (warnData && warnData.code === 200) {
-    for (const m of (warnData.data.list || [])) {
-      if (cfg.warnScopes.some(s => (m.sender || '').includes(s) || (m.title || '').includes(s.replace('处','')))) {
-        warnings.push(m);
-      }
-    }
-  }
-
-  // === 渲染 ===
-  // 指标卡
-  const indCards = cfg.indicators.map(code => {
-    const def = (indData && indData.data || []).find(x => x.code === code);
-    const val = indVals[code];
-    return def ? `<div class="tp-ind-card">
-      <div class="tp-ind-name">${def.name}</div>
-      <div class="tp-ind-val">${val ? val.value : '—'}<small>${def.unit}</small></div>
-      <div class="tp-ind-desc">${(def.definition || '').slice(0,24)}</div>
-    </div>` : '';
+  // 趋势图（简化为 mini sparkline）
+  const metricRows = cfg.metrics.map(m => {
+    const max = Math.max(...m.trend);
+    const bars = m.trend.map(v => {
+      const h = Math.round(v / max * 100);
+      return `<div class="mini-chart-bar" style="height:${h}%;background:${cfg.color}"></div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--txt-2);margin-bottom:4px">${m.name}（近6个月）</div>
+      <div class="mini-chart">${bars}</div>
+      <div style="font-size:11px;color:var(--txt-3);text-align:right">最新：${m.trend[m.trend.length-1]} ${m.unit}</div>
+    </div>`;
   }).join('');
 
-  // 数据表
-  let dataTable = '';
-  for (const code of cfg.dataQueries) {
-    const d = dataResults[code];
-    if (!d || !d.list || !d.list.length) continue;
-    const cols = d.list[0] ? Object.keys(d.list[0]).filter(k => !['id','lng','lat','status'].includes(k)) : [];
-    dataTable += `<div class="tp-data-section">
-      <div class="tp-data-title">📁 ${d.resource ? d.resource.name : code}</div>
-      <table class="tbl"><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>
-      ${d.list.map(row => `<tr>${cols.map(c => `<td>${row[c] ?? '-'}</td>`).join('')}</tr>`).join('')}
-      </tbody></table></div>`;
-  }
-
-  // 预警
-  const warnHTML = warnings.length ? warnings.slice(0, 6).map(w => `
-    <div class="tp-warn-item">
-      <span class="dot ${w.level>=3?'dot-red':'dot-orange'}"></span>
-      <span>${w.title}</span>
-      <span class="tag ${w.level>=3?'tag-red':'tag-orange'}">${w.level>=3?'紧急':'较重'}</span>
-      <span style="margin-left:auto;font-size:11px;color:var(--txt-3)">${w.sender}</span>
-    </div>`).join('') : '<div class="empty">当前无预警 🎉</div>';
+  // 亮点
+  const highlightHTML = cfg.highlights.map(h => `<li>${h}</li>`).join('');
 
   body.innerHTML = `
     <div class="tp-grid">
-      <div class="tp-ind-panel">
-        <div class="panel-head"><div class="t">📊 ${cfg.name}核心指标</div></div>
-        <div class="tp-ind-grid">${indCards}</div>
+      <div class="tp-main">
+        <div class="section">
+          <div class="section-title">👥 协同处室</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0">${deptChips}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">📊 核心统计（来源：2026上半年总结）</div>
+          <div class="tp-stat-grid">${statCards}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">📈 趋势概览</div>
+          ${metricRows}
+        </div>
       </div>
-      <div class="tp-data-panel">
-        ${dataTable}
-        <div class="panel" style="margin-top:14px">
-          <div class="panel-head"><div class="t">⚠️ 相关预警</div></div>
-          <div class="tp-warn-list">${warnHTML}</div>
+      
+      <div class="tp-side">
+        <div class="section">
+          <div class="section-title">✨ 工作亮点</div>
+          <ul class="tp-hl-list">${highlightHTML}</ul>
+        </div>
+        <div class="section" style="margin-top:14px">
+          <div class="section-title" style="color:#ffb400">💡 数据来源</div>
+          <div style="font-size:12px;color:var(--txt-3);line-height:1.6">
+            《新区建设和交通管理系统2026年上半年工作总结和下半年工作谋划》（0714版）<br>
+            📅 更新：2026年7月
+          </div>
         </div>
       </div>
     </div>`;
@@ -1031,17 +1067,19 @@ async function loadProjectDetail(pid) {
   const dd = data.data;
   const p = dd.project;
 
-  // 阶段时间轴
+  // 阶段时间轴（含处室标签）
   const stageHTML = dd.stages.map((s, i) => {
     const done = s.status === '已完成';
     const active = s.status === '进行中';
     const delay = s.status === '超期';
     const cls = done ? 'done' : active ? 'active' : delay ? 'delay' : '';
+    const deptChips = s.resp_dept ? s.resp_dept.split(',').map(d => `<span class="dept-chip">${d.trim()}</span>`).join('') : '';
     return `<div class="ps-node ${cls}">
       <div class="ps-dot"></div>
-      <div class="ps-info"><div class="ps-name">${s.stage_name}</div>
+      <div class="ps-info"><div class="ps-name">${s.stage_name} ${deptChips}</div>
         <div class="ps-date">${s.start_date} ~ ${s.plan_end_date || '—'}</div>
         ${s.actual_end_date ? `<div class="ps-actual">实际：${s.actual_end_date}</div>` : ''}
+        ${s.remark ? `<div class="ps-remark">📌 ${s.remark}</div>` : ''}
       </div>
     </div>`;
   }).join('');

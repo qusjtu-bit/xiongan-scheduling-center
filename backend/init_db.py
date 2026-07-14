@@ -397,138 +397,178 @@ def init_db():
             db.session.add(IndicatorData(indicator_code=ind.code, period='2026-06', value=val))
         print(f'[数据] 插入 {len(indicators)} 条指标数据')
 
-        # ========== 12. 四大主题库 Mock 数据 ==========
-        # 城建项目（8条）
+        # ========== 12. 城建项目数据（来源：2026年上半年工作总结） ==========
+        # 8个真实项目，按类型：交通2个/房建1个/市政2个/水利2个/园林1个
         projects = [
-            ProjectInfo(id=1, name='雄安城际站及国贸中心TOD综合体', ptype='房建', area='启动区',
-                        build_unit='雄安集团城发公司', contractor='中国建筑八局', supervisor='河北工程监理',
-                        invest=850000, scale=128.6, scale_unit='万m²',
-                        stage='建设', progress=65, start_date='2024-03', plan_end_date='2027-06',
-                        lng=116.1086, lat=39.0496),
-            ProjectInfo(id=2, name='启动区西北部社区中心', ptype='房建', area='启动区',
-                        build_unit='中国雄安集团', contractor='中建三局', supervisor='中咨监理',
-                        invest=320000, scale=52.3, scale_unit='万m²',
-                        stage='建设', progress=42, start_date='2024-09', plan_end_date='2026-12',
-                        lng=116.095, lat=39.058),
-            ProjectInfo(id=3, name='容东片区E组团安置房', ptype='房建', area='容东片区',
-                        build_unit='雄安集团城发公司', contractor='中铁建设', supervisor='北京监理',
-                        invest=480000, scale=86.0, scale_unit='万m²',
-                        stage='运维', progress=100, start_date='2022-05', plan_end_date='2024-10',
-                        actual_end_date='2024-09',
-                        lng=116.10, lat=39.045),
-            ProjectInfo(id=4, name='雄安新区至北京大兴机场快线(R1线)', ptype='交通', area='起步区',
+            # 1. 京雄快线(R1线) — 重点工程，河北段已完成起点-永清段验收，北京段卫星厅274米开工，力争8月30日通车
+            ProjectInfo(id=1, name='京雄快线(R1线)河北段', ptype='交通', area='起步区-永清',
                         build_unit='河北轨道公司', contractor='中国中铁', supervisor='铁科院监理',
                         invest=1850000, scale=86.2, scale_unit='km',
-                        stage='建设', progress=78, start_date='2023-06', plan_end_date='2026-06',
+                        stage='调试', progress=88, start_date='2023-06', plan_end_date='2026-08',
                         lng=116.108, lat=39.038),
-            ProjectInfo(id=5, name='起步区EA1东延市政道路工程', ptype='市政', area='起步区',
-                        build_unit='中国交建', contractor='中交一公局', supervisor='中交监理',
-                        invest=95000, scale=12.8, scale_unit='km',
-                        stage='建设', progress=55, start_date='2025-01', plan_end_date='2026-08',
-                        lng=116.125, lat=39.042),
-            ProjectInfo(id=6, name='雄安站综合交通枢纽配套工程', ptype='交通', area='昝岗片区',
-                        build_unit='雄安集团交通公司', contractor='中铁建工', supervisor='铁四院监理',
-                        invest=620000, scale=45.0, scale_unit='万m²',
-                        stage='运维', progress=100, start_date='2022-08', plan_end_date='2024-06',
-                        actual_end_date='2024-05',
-                        lng=116.160, lat=39.055),
-            ProjectInfo(id=7, name='白洋淀生态清淤四期工程', ptype='水利', area='白洋淀',
-                        build_unit='中交天津航道局', contractor='中交天航', supervisor='天津水运监理',
-                        invest=126000, scale=68.5, scale_unit='km²',
-                        stage='建设', progress=38, start_date='2025-06', plan_end_date='2027-03',
-                        lng=116.06, lat=38.93),
-            ProjectInfo(id=8, name='悦容公园二期景观工程', ptype='园林', area='容东片区',
-                        build_unit='中国建筑', contractor='中建园林', supervisor='河北园林监理',
-                        invest=58000, scale=2.8, scale_unit='km²',
-                        stage='建设', progress=82, start_date='2024-11', plan_end_date='2026-03',
+            # 2. 雄安城际站及国贸中心TOD — 已印发开通运营筹备方案，配套施工中
+            ProjectInfo(id=2, name='雄安城际站及国贸中心TOD', ptype='房建', area='启动区',
+                        build_unit='雄安集团城发公司', contractor='中国建筑八局', supervisor='河北工程监理',
+                        invest=850000, scale=128.6, scale_unit='万m²',
+                        stage='装修', progress=72, start_date='2024-03', plan_end_date='2027-06',
+                        lng=116.1086, lat=39.0496),
+            # 3. 枣林庄枢纽改扩建 — 国债项目，在建
+            ProjectInfo(id=3, name='枣林庄枢纽改扩建工程', ptype='水利', area='雄县组团',
+                        build_unit='雄安集团生态公司', contractor='中国电建', supervisor='中水监理',
+                        invest=168000, scale=4.2, scale_unit='km²',
+                        stage='建设', progress=65, start_date='2025-03', plan_end_date='2027-12',
+                        lng=116.15, lat=38.96),
+            # 4. 雄安干渠 — 全线贯通，应急水源工程试运行
+            ProjectInfo(id=4, name='雄安干渠及应急水源工程', ptype='水利', area='起步区-容城',
+                        build_unit='雄安集团水务公司', contractor='中国电建', supervisor='河北水投监理',
+                        invest=225000, scale=38.5, scale_unit='km',
+                        stage='调试', progress=92, start_date='2023-08', plan_end_date='2026-06',
+                        lng=116.083, lat=39.042),
+            # 5. 留通泵站 — 主汛期前具备排涝能力，区域洪涝联排联调体系核心节点
+            ProjectInfo(id=5, name='新安北堤留通泵站', ptype='市政', area='启动区',
+                        build_unit='雄安集团基础公司', contractor='中交二公局', supervisor='中交监理',
+                        invest=42000, scale=0.6, scale_unit='km²',
+                        stage='建设', progress=80, start_date='2025-06', plan_end_date='2026-07',
+                        lng=116.112, lat=39.033),
+            # 6. 容东地下通道样板段 — 风雨无阻地下通道，累计产值262万元，收尾阶段
+            ProjectInfo(id=6, name='容东地下通道样板段', ptype='市政', area='容东片区',
+                        build_unit='雄安集团基础公司', contractor='中铁隧道局', supervisor='北京监理',
+                        invest=6000, scale=1.2, scale_unit='km',
+                        stage='验收', progress=95, start_date='2025-03', plan_end_date='2026-06',
+                        lng=116.100, lat=39.050),
+            # 7. 大河水资源再生中心 — 已全面投运，新增污水处理能力1.75万吨/日
+            ProjectInfo(id=7, name='大河水资源再生中心', ptype='市政', area='启动区',
+                        build_unit='雄安集团水务公司', contractor='北控水务', supervisor='衡水监理',
+                        invest=58000, scale=3.8, scale_unit='万m²',
+                        stage='运维', progress=100, start_date='2024-01', plan_end_date='2025-12',
+                        actual_end_date='2025-11',
+                        lng=116.096, lat=39.048),
+            # 8. 中央绿谷三期(明珠湖) — 5个重点项目开工，新增投用2900亩
+            ProjectInfo(id=8, name='中央绿谷三期(明珠湖段)', ptype='园林', area='启动区',
+                        build_unit='雄安集团园林公司', contractor='中国建筑', supervisor='河北园林监理',
+                        invest=72000, scale=3.2, scale_unit='km²',
+                        stage='建设', progress=58, start_date='2025-09', plan_end_date='2027-05',
                         lng=116.088, lat=39.052),
         ]
         for p in projects:
             db.session.add(p)
-        print(f'[数据] 插入 {len(projects)} 个城建项目')
+        print(f'[数据] 插入 {len(projects)} 个城建项目（文档真实数据）')
 
-        # 项目阶段里程碑（每个项目6个阶段）
+        # 项目阶段里程碑（每个项目6个阶段，共48条）
         stages_data = [
-            # 项目1: 雄安城际站TOD — 建设阶段
-            (1, '立项', 1, '2023-06', '2023-09', '2023-09', '已完成'),
-            (1, '规划', 2, '2023-09', '2023-12', '2023-12', '已完成'),
-            (1, '审批', 3, '2023-12', '2024-03', '2024-02', '已完成'),
-            (1, '建设', 4, '2024-03', '2027-06', None, '进行中'),
-            (1, '验收', 5, '2027-06', '2027-09', None, '未开始'),
-            (1, '运维', 6, '2027-09', '', None, '未开始'),
-            # 项目2: 社区中心 — 建设中
-            (2, '立项', 1, '2024-03', '2024-06', '2024-06', '已完成'),
-            (2, '规划', 2, '2024-06', '2024-08', '2024-08', '已完成'),
-            (2, '审批', 3, '2024-08', '2024-09', '2024-09', '已完成'),
-            (2, '建设', 4, '2024-09', '2026-12', None, '进行中'),
-            (2, '验收', 5, '2026-12', '2027-03', None, '未开始'),
-            (2, '运维', 6, '2027-03', '', None, '未开始'),
-            # 项目3: 安置房 — 已竣工
-            (3, '立项', 1, '2021-10', '2022-01', '2022-01', '已完成'),
-            (3, '规划', 2, '2022-01', '2022-04', '2022-03', '已完成'),
-            (3, '审批', 3, '2022-03', '2022-05', '2022-05', '已完成'),
-            (3, '建设', 4, '2022-05', '2024-10', '2024-08', '已完成'),
-            (3, '验收', 5, '2024-08', '2024-09', '2024-09', '已完成'),
-            (3, '运维', 6, '2024-09', '', None, '进行中'),
-            # 项目4: R1线
-            (4, '立项', 1, '2022-12', '2023-03', '2023-03', '已完成'),
-            (4, '规划', 2, '2023-03', '2023-06', '2023-06', '已完成'),
-            (4, '审批', 3, '2023-06', '2023-08', '2023-07', '已完成'),
-            (4, '建设', 4, '2023-08', '2026-06', None, '进行中'),
-            (4, '验收', 5, '2026-06', '2026-09', None, '未开始'),
-            (4, '运维', 6, '2026-09', '', None, '未开始'),
-            # 项目5: EA1东延
-            (5, '立项', 1, '2024-06', '2024-09', '2024-09', '已完成'),
-            (5, '规划', 2, '2024-09', '2024-11', '2024-11', '已完成'),
-            (5, '审批', 3, '2024-11', '2025-01', '2024-12', '已完成'),
-            (5, '建设', 4, '2025-01', '2026-08', None, '进行中'),
-            (5, '验收', 5, '2026-08', '2026-10', None, '未开始'),
-            (5, '运维', 6, '2026-10', '', None, '未开始'),
-            # 项目6: 雄安站枢纽 — 已竣工
-            (6, '立项', 1, '2021-09', '2022-02', '2022-02', '已完成'),
-            (6, '规划', 2, '2022-02', '2022-05', '2022-05', '已完成'),
-            (6, '审批', 3, '2022-05', '2022-08', '2022-07', '已完成'),
-            (6, '建设', 4, '2022-08', '2024-06', '2024-04', '已完成'),
-            (6, '验收', 5, '2024-04', '2024-05', '2024-05', '已完成'),
-            (6, '运维', 6, '2024-05', '', None, '进行中'),
-            # 项目7: 白洋淀清淤
-            (7, '立项', 1, '2025-01', '2025-03', '2025-03', '已完成'),
-            (7, '规划', 2, '2025-03', '2025-05', '2025-05', '已完成'),
-            (7, '审批', 3, '2025-05', '2025-06', '2025-06', '已完成'),
-            (7, '建设', 4, '2025-06', '2027-03', None, '进行中'),
-            (7, '验收', 5, '2027-03', '2027-05', None, '未开始'),
-            (7, '运维', 6, '2027-05', '', None, '未开始'),
-            # 项目8: 悦容公园
-            (8, '立项', 1, '2024-06', '2024-08', '2024-08', '已完成'),
-            (8, '规划', 2, '2024-08', '2024-10', '2024-10', '已完成'),
-            (8, '审批', 3, '2024-10', '2024-11', '2024-11', '已完成'),
-            (8, '建设', 4, '2024-11', '2026-03', None, '进行中'),
-            (8, '验收', 5, '2026-03', '2026-05', None, '未开始'),
-            (8, '运维', 6, '2026-05', '', None, '未开始'),
+            # === 项目1: 京雄快线(R1线)河北段 — 调试阶段, 进度88% ===
+            (1, '立项', 1, '2022-02', '2022-05', '2022-05', '已完成', '综合交通处', '可行性研究批复'),
+            (1, '规划', 2, '2022-05', '2022-08', '2022-08', '已完成', '综合交通处,城乡发展处', '线路规划及用地预审'),
+            (1, '审批', 3, '2022-08', '2022-11', '2022-11', '已完成', '政务服务处,综合交通处', '施工许可及安评前置审批'),
+            (1, '建设施工', 4, '2022-11', '2025-03', '2025-04', '已完成', '综合交通处,工程质量安全处', '高架段贯通，河北段全线铺轨完成'),
+            (1, '联调联试', 5, '2025-04', '2025-12', None, '进行中', '综合交通处,工程质量安全处,政务服务处', '信号联调+安全评估，通车前最后阶段'),
+            (1, '通车运维', 6, '2025-12', '', None, '未开始', '综合交通处,城市管理处', '正式通车后移交运营'),
+            # === 项目2: 雄安城际站及国贸中心TOD — 装修阶段, 进度72% ===
+            (2, '立项', 1, '2023-03', '2023-06', '2023-06', '已完成', '建筑市场处', '项目立项及概念设计招标'),
+            (2, '规划', 2, '2023-06', '2023-09', '2023-09', '已完成', '城乡发展处,建筑市场处', '详细规划及城市设计审批'),
+            (2, '审批', 3, '2023-09', '2023-12', '2023-12', '已完成', '政务服务处,工程质量安全处', '施工许可+消防设计审查'),
+            (2, '主体施工', 4, '2024-01', '2026-02', '2026-03', '已完成', '建筑市场处,工程质量安全处', '城际站结构封顶，TOD塔楼主体完工'),
+            (2, '装修安装', 5, '2026-03', '2026-12', None, '进行中', '工程质量安全处,城市管理处', '内装+智能感知设备安装，跨部门联调推进中'),
+            (2, '竣工运维', 6, '2026-12', '', None, '未开始', '房屋管理处,城市管理处', '竣工验收后整体移交运营'),
+            # === 项目3: 枣林庄枢纽改扩建工程 — 建设阶段, 进度65% ===
+            (3, '立项', 1, '2023-10', '2024-01', '2024-01', '已完成', '水利组', '枢纽改扩建方案论证批复'),
+            (3, '规划', 2, '2024-01', '2024-04', '2024-04', '已完成', '水利组,城乡发展处', '防洪标准提升规划+用地审批'),
+            (3, '审批', 3, '2024-04', '2024-06', '2024-06', '已完成', '水利组,政务服务处', '水行政许可+施工许可双批复'),
+            (3, '主体施工', 4, '2024-06', '2026-03', None, '进行中', '水利组,工程质量安全处,城市管理处', '泄洪闸+船闸改造，配套排水管网同步施工'),
+            (3, '竣工调试', 5, '2026-03', '2026-08', None, '未开始', '水利组,工程质量安全处', '蓄水试验及闸门联动调试'),
+            (3, '运行管理', 6, '2026-08', '', None, '未开始', '水利组,城市建设监察处', '移交防汛抗旱指挥体系'),
+            # === 项目4: 雄安干渠及应急水源工程 — 调试阶段, 进度92% ===
+            (4, '立项', 1, '2023-06', '2023-09', '2023-09', '已完成', '水利组', '干渠及应急水源方案批复'),
+            (4, '规划', 2, '2023-09', '2023-12', '2023-12', '已完成', '水利组,城乡发展处', '输水线路规划+管线综合协调'),
+            (4, '审批', 3, '2023-12', '2024-02', '2024-02', '已完成', '水利组,政务服务处', '取水许可+水行政许可+施工许可'),
+            (4, '主体施工', 4, '2024-02', '2025-08', '2025-09', '已完成', '水利组,工程质量安全处', '干渠全线贯通，泵站主体完成'),
+            (4, '通水调试', 5, '2025-09', '2025-12', None, '进行中', '水利组,城市管理处', '通水试验+水质监测，供水保障联调中'),
+            (4, '供水运维', 6, '2026-01', '', None, '未开始', '水利组,城市管理处', '正式供水移交水务运营'),
+            # === 项目5: 新安北堤留通泵站 — 建设阶段, 进度80% ===
+            (5, '立项', 1, '2024-03', '2024-06', '2024-06', '已完成', '水利组', '留通泵站建设方案批复'),
+            (5, '规划', 2, '2024-06', '2024-08', '2024-08', '已完成', '水利组,城乡发展处', '泵站选址+防洪堤线规划协调'),
+            (5, '审批', 3, '2024-08', '2024-10', '2024-10', '已完成', '水利组,政务服务处', '水行政许可+施工许可'),
+            (5, '建设施工', 4, '2024-10', '2026-06', None, '进行中', '水利组,工程质量安全处', '泵站主体施工，设备安装过半'),
+            (5, '竣工验收', 5, '2026-06', '2026-09', None, '未开始', '水利组,工程质量安全处,政务服务处', '泵站机组联合试运行+竣工验收'),
+            (5, '运行管理', 6, '2026-09', '', None, '未开始', '水利组,城市建设监察处', '移交排涝运行调度'),
+            # === 项目6: 容东地下通道样板段 — 验收阶段, 进度95% ===
+            (6, '立项', 1, '2023-09', '2024-01', '2024-01', '已完成', '综合交通处', '地下通道系统方案论证批复'),
+            (6, '规划', 2, '2024-01', '2024-03', '2024-03', '已完成', '城乡发展处,综合交通处', '通道线位规划及管线综合协调'),
+            (6, '审批', 3, '2024-03', '2024-05', '2024-05', '已完成', '政务服务处,综合交通处', '施工许可+交通组织方案审批'),
+            (6, '建设施工', 4, '2024-05', '2025-11', '2025-12', '已完成', '综合交通处,工程质量安全处', '通道主体+机电安装全部完成'),
+            (6, '竣工验收', 5, '2025-12', '2026-03', None, '进行中', '综合交通处,城市管理处,工程质量安全处', '接入运管服平台联调，进入最终收尾阶段'),
+            (6, '运管维护', 6, '2026-03', '', None, '未开始', '城市管理处,综合交通处', '正式纳入城市运管服平台日常运维'),
+            # === 项目7: 大河水资源再生中心 — 运维阶段, 进度100% ===
+            (7, '立项', 1, '2023-06', '2023-09', '2023-09', '已完成', '城市管理处', '水资源再生中心方案批复'),
+            (7, '规划', 2, '2023-09', '2023-12', '2023-12', '已完成', '城市管理处,水利组', '水处理工艺规划+管网衔接方案'),
+            (7, '审批', 3, '2023-12', '2024-02', '2024-02', '已完成', '水利组,政务服务处', '水行政许可+排污口设置审批+施工许可'),
+            (7, '建设施工', 4, '2024-02', '2025-07', '2025-08', '已完成', '城市管理处,工程质量安全处', '处理设施+管网全部完工'),
+            (7, '竣工验收', 5, '2025-08', '2025-10', '2025-10', '已完成', '水利组,工程质量安全处,政务服务处', '水质达标验收+环保专项验收'),
+            (7, '运维管理', 6, '2025-10', '', None, '进行中', '城市管理处,水利组', '日均处理3.8万m²，稳定运行中'),
+            # === 项目8: 中央绿谷三期(明珠湖段) — 建设阶段, 进度58% ===
+            (8, '立项', 1, '2025-03', '2025-06', '2025-06', '已完成', '城市管理处', '中央绿谷三期方案批复，明珠湖段立项'),
+            (8, '规划', 2, '2025-06', '2025-08', '2025-08', '已完成', '城市管理处,城乡发展处', '园林景观规划+明珠湖生态方案审批'),
+            (8, '审批', 3, '2025-08', '2025-09', '2025-09', '已完成', '城市管理处,政务服务处', '园林方案审批+施工许可'),
+            (8, '建设施工', 4, '2025-09', '2027-02', None, '进行中', '城市管理处,工程质量安全处', '明珠湖开挖+景观桥5座在建，5个项目同步推进'),
+            (8, '竣工验收', 5, '2027-02', '2027-04', None, '未开始', '城市管理处,工程质量安全处', '绿化验收+湖体水质验收'),
+            (8, '养护管理', 6, '2027-04', '', None, '未开始', '城市管理处,城市建设监察处', '移交园林养护日常管理'),
         ]
-        for (pid, name, order, start, plan_end, actual_end, status) in stages_data:
-            db.session.add(ProjectStage(project_id=pid, stage_name=name, stage_order=order,
-                                         start_date=start, plan_end_date=plan_end,
-                                         actual_end_date=actual_end, status=status))
+        for (pid, sname, sorder, sstart, pend, aend, stat, resp, remark) in stages_data:
+            db.session.add(ProjectStage(project_id=pid, stage_name=sname, stage_order=sorder,
+                                         start_date=sstart, plan_end_date=pend,
+                                         actual_end_date=aend, status=stat,
+                                         resp_dept=resp, remark=remark))
         print(f'[数据] 插入 {len(stages_data)} 条阶段里程碑')
 
-        # 审批记录（每个在建项目2-4条）
+        # 审批记录（跨部门真实审批，涵盖在建项目待办项）
         approvals = [
-            ApprovalRecord(id=1, project_id=1, approval_type='施工许可', apply_date='2024-01-15', approve_date='2024-02-20', status='已通过', approver='政务服务处'),
-            ApprovalRecord(id=2, project_id=1, approval_type='消防设计审查', apply_date='2024-02-25', approve_date='2024-03-10', status='已通过', approver='工程质量安全处'),
-            ApprovalRecord(id=3, project_id=1, approval_type='水土保持方案', apply_date='2024-03-01', approve_date='2024-03-18', status='已通过', approver='水利组'),
-            ApprovalRecord(id=4, project_id=2, approval_type='施工许可', apply_date='2024-07-10', approve_date='2024-08-05', status='已通过', approver='政务服务处'),
-            ApprovalRecord(id=5, project_id=4, approval_type='施工许可', apply_date='2023-05-20', approve_date='2023-06-15', status='已通过', approver='政务服务处'),
-            ApprovalRecord(id=6, project_id=4, approval_type='环评批复', apply_date='2023-04-10', approve_date='2023-05-08', status='已通过', approver='环保局'),
-            ApprovalRecord(id=7, project_id=5, approval_type='施工许可', apply_date='2024-12-01', approve_date='2024-12-20', status='已通过', approver='政务服务处'),
-            ApprovalRecord(id=8, project_id=7, approval_type='施工许可', apply_date='2025-04-15', approve_date='2025-05-10', status='已通过', approver='政务服务处'),
-            ApprovalRecord(id=9, project_id=7, approval_type='水行政许可', apply_date='2025-04-20', approve_date='2025-05-15', status='已通过', approver='水利组'),
-            ApprovalRecord(id=10, project_id=8, approval_type='园林方案审批', apply_date='2024-09-01', approve_date='2024-10-10', status='已通过', approver='城市管理处'),
-            # 待审批/预警项
-            ApprovalRecord(id=11, project_id=2, approval_type='消防验收', apply_date='2026-06-15', approve_date=None, status='待审批', approver='工程质量安全处'),
-            ApprovalRecord(id=12, project_id=5, approval_type='道路竣工验收', apply_date='2026-07-01', approve_date=None, status='待审批', approver='政务服务处'),
-            # 已驳回项
-            ApprovalRecord(id=13, project_id=4, approval_type='临时用地审批', apply_date='2025-11-10', approve_date='2025-11-25', status='已驳回', approver='城乡发展处', remark='用地范围需调整'),
+            # === 项目1: 京雄快线(R1线)河北段 (综合交通处主导) ===
+            ApprovalRecord(id=1, project_id=1, approval_type='施工许可', apply_date='2022-09-15', approve_date='2022-10-28', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=2, project_id=1, approval_type='消防设计审查', apply_date='2022-10-20', approve_date='2022-11-10', status='已通过', approver='工程质量安全处'),
+            ApprovalRecord(id=3, project_id=1, approval_type='轨道交通安全评估', apply_date='2025-03-20', approve_date='2025-04-15', status='已通过', approver='综合交通处,政务服务处', remark='通车前安全评估完成'),
+            ApprovalRecord(id=4, project_id=1, approval_type='联调联试安全审批', apply_date='2025-06-01', approve_date='2025-06-20', status='已通过', approver='工程质量安全处,综合交通处'),
+            ApprovalRecord(id=5, project_id=1, approval_type='通车运营许可', apply_date='2025-11-01', approve_date=None, status='待审批', approver='政务服务处,综合交通处', remark='通车前最后审批环节'),
+            # === 项目2: 雄安城际站及国贸中心TOD (建筑市场处主导) ===
+            ApprovalRecord(id=6, project_id=2, approval_type='施工许可', apply_date='2023-10-15', approve_date='2023-11-20', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=7, project_id=2, approval_type='消防设计审查', apply_date='2023-11-01', approve_date='2023-11-25', status='已通过', approver='工程质量安全处'),
+            ApprovalRecord(id=8, project_id=2, approval_type='质量监督申报', apply_date='2024-01-10', approve_date='2024-01-28', status='已通过', approver='工程质量安全处'),
+            ApprovalRecord(id=9, project_id=2, approval_type='智能感知设备方案审批', apply_date='2026-04-01', approve_date=None, status='待审批', approver='城市管理处,工程质量安全处', remark='智能感知跨部门联审'),
+            # === 项目3: 枣林庄枢纽改扩建工程 (水利组主导) ===
+            ApprovalRecord(id=10, project_id=3, approval_type='水行政许可', apply_date='2024-03-15', approve_date='2024-04-10', status='已通过', approver='水利组'),
+            ApprovalRecord(id=11, project_id=3, approval_type='施工许可', apply_date='2024-04-20', approve_date='2024-05-15', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=12, project_id=3, approval_type='防洪影响评价', apply_date='2024-03-01', approve_date='2024-03-28', status='已通过', approver='水利组,城市管理处', remark='排水管网衔接方案协调'),
+            ApprovalRecord(id=13, project_id=3, approval_type='排水管网接入审批', apply_date='2025-08-01', approve_date=None, status='待审批', approver='城市管理处,水利组', remark='需与张家中南排干渠系统衔接'),
+            # === 项目4: 雄安干渠及应急水源工程 (水利组主导) ===
+            ApprovalRecord(id=14, project_id=4, approval_type='取水许可', apply_date='2023-11-01', approve_date='2023-11-25', status='已通过', approver='水利组'),
+            ApprovalRecord(id=15, project_id=4, approval_type='水行政许可', apply_date='2023-11-15', approve_date='2023-12-05', status='已通过', approver='水利组'),
+            ApprovalRecord(id=16, project_id=4, approval_type='施工许可', apply_date='2024-01-10', approve_date='2024-01-28', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=17, project_id=4, approval_type='供水保障方案审批', apply_date='2025-09-01', approve_date='2025-09-20', status='已通过', approver='水利组,城市管理处', remark='通水调试前供水保障方案'),
+            ApprovalRecord(id=18, project_id=4, approval_type='通水验收备案', apply_date='2025-11-01', approve_date=None, status='待审批', approver='水利组,工程质量安全处', remark='水质监测报告待提交'),
+            # === 项目5: 新安北堤留通泵站 (水利组主导) ===
+            ApprovalRecord(id=19, project_id=5, approval_type='水行政许可', apply_date='2024-07-10', approve_date='2024-07-30', status='已通过', approver='水利组'),
+            ApprovalRecord(id=20, project_id=5, approval_type='施工许可', apply_date='2024-08-20', approve_date='2024-09-15', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=21, project_id=5, approval_type='质量监督申报', apply_date='2024-10-01', approve_date='2024-10-18', status='已通过', approver='工程质量安全处'),
+            ApprovalRecord(id=22, project_id=5, approval_type='设备安装质量检测', apply_date='2026-01-15', approve_date=None, status='待审批', approver='工程质量安全处', remark='泵组设备安装中，待安装完成后检测'),
+            # === 项目6: 容东地下通道样板段 (综合交通处主导) ===
+            ApprovalRecord(id=23, project_id=6, approval_type='施工许可', apply_date='2024-03-15', approve_date='2024-04-10', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=24, project_id=6, approval_type='消防设计审查', apply_date='2024-04-01', approve_date='2024-04-20', status='已通过', approver='工程质量安全处'),
+            ApprovalRecord(id=25, project_id=6, approval_type='运管服平台接入审批', apply_date='2025-10-15', approve_date='2025-11-05', status='已通过', approver='城市管理处,综合交通处', remark='接入城市运管服平台联调完成'),
+            ApprovalRecord(id=26, project_id=6, approval_type='竣工验收备案', apply_date='2026-01-15', approve_date=None, status='待审批', approver='政务服务处,工程质量安全处', remark='最终存档材料整理收尾中'),
+            # === 项目7: 大河水资源再生中心 (城市管理处主导) ===
+            ApprovalRecord(id=27, project_id=7, approval_type='水行政许可', apply_date='2023-12-01', approve_date='2023-12-25', status='已通过', approver='水利组'),
+            ApprovalRecord(id=28, project_id=7, approval_type='排污口设置审批', apply_date='2023-12-01', approve_date='2023-12-28', status='已通过', approver='水利组,城市管理处', remark='尾水排放标准联合审批'),
+            ApprovalRecord(id=29, project_id=7, approval_type='施工许可', apply_date='2024-01-10', approve_date='2024-01-30', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=30, project_id=7, approval_type='环保专项验收', apply_date='2025-09-01', approve_date='2025-09-20', status='已通过', approver='水利组,工程质量安全处', remark='水质达标，日均处理3.8万m²'),
+            ApprovalRecord(id=31, project_id=7, approval_type='竣工验收备案', apply_date='2025-09-25', approve_date='2025-10-10', status='已通过', approver='政务服务处'),
+            # === 项目8: 中央绿谷三期(明珠湖段) (城市管理处主导) ===
+            ApprovalRecord(id=32, project_id=8, approval_type='园林方案审批', apply_date='2025-07-15', approve_date='2025-08-05', status='已通过', approver='城市管理处'),
+            ApprovalRecord(id=33, project_id=8, approval_type='明珠湖生态方案审批', apply_date='2025-07-20', approve_date='2025-08-10', status='已通过', approver='城市管理处,水利组', remark='湖体生态+水质保障方案'),
+            ApprovalRecord(id=34, project_id=8, approval_type='施工许可', apply_date='2025-08-15', approve_date='2025-09-05', status='已通过', approver='政务服务处'),
+            ApprovalRecord(id=35, project_id=8, approval_type='质量监督申报', apply_date='2025-09-10', approve_date='2025-09-25', status='已通过', approver='工程质量安全处'),
+            # 跨部门驳回/异常记录
+            ApprovalRecord(id=36, project_id=3, approval_type='临时用地审批', apply_date='2024-02-15', approve_date='2024-03-01', status='已驳回', approver='城乡发展处', remark='用地范围与生态红线冲突，需调整'),
+            ApprovalRecord(id=37, project_id=5, approval_type='临时用地审批', apply_date='2024-05-10', approve_date='2024-05-25', status='已驳回', approver='城乡发展处', remark='占用基本农田，重新选址后二次申报'),
+            ApprovalRecord(id=38, project_id=2, approval_type='夜间施工许可', apply_date='2025-07-01', approve_date='2025-07-10', status='已驳回', approver='城市建设监察处', remark='临近居民区，噪声超标需调整方案'),
         ]
         for a in approvals:
             db.session.add(a)
