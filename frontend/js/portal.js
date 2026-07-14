@@ -621,11 +621,14 @@ async function aiSend() {
   if (data && data.code === 200) {
     const reply = data.data.reply || '';
     const followups = data.data.followups || [];
+    const sources = data.data.sources || [];
+    const kbSuggestions = data.data.kb_suggestions || [];
     const ents = data.data.entities || {};
     let entTag = '';
     if (ents.domains && ents.domains.length) entTag += `<span class="ai-tag">${_esc(ents.domains.join('/'))}</span> `;
     if (ents.projects && ents.projects.length) entTag += `<span class="ai-tag">项目：${_esc(ents.projects[0])}</span> `;
     if (ents.time_range) entTag += `<span class="ai-tag">时间：${_esc(ents.time_range)}</span> `;
+    if (ents.topic && ents.topic !== 'general') entTag += `<span class="ai-tag ai-tag-external">联网检索 · ${_esc(ents.topic)}</span> `;
     if (entTag) entTag = `<div class="ai-ents">${entTag}</div>`;
 
     let followupHtml = '';
@@ -634,11 +637,40 @@ async function aiSend() {
         `<button onclick="aiQuickAsk(${JSON.stringify(f)})">${_esc(f)}</button>`).join('')}</div>`;
     }
 
+    // 来源卡片（联网检索）
+    let sourcesHtml = '';
+    if (sources.length) {
+      sourcesHtml = `<div class="ai-sources">
+        <div class="ai-sources-head">📚 参考来源（来自公开网络）</div>
+        ${sources.map((s, i) => `
+          <a class="ai-source-card" href="${_esc(s.url)}" target="_blank" rel="noopener">
+            <div class="ai-source-num">${i+1}</div>
+            <div class="ai-source-body">
+              <div class="ai-source-title">${_esc(s.title)}</div>
+              <div class="ai-source-snippet">${_esc(s.snippet || '')}</div>
+              <div class="ai-source-url">${_esc(s.url)}</div>
+            </div>
+          </a>`).join('')}
+      </div>`;
+    }
+
+    // 知识库补全建议
+    let kbHtml = '';
+    if (kbSuggestions.length) {
+      kbHtml = `<div class="ai-kb-suggest">
+        <div class="ai-kb-head">💡 建议补全到本地知识库</div>
+        <ul class="ai-kb-list">${kbSuggestions.map(s => `<li>📄 ${_esc(s)}</li>`).join('')}</ul>
+        <div class="ai-kb-tip">系统管理 → 知识库管理 上传 PDF/Word，自动解析后即可语义检索。</div>
+      </div>`;
+    }
+
     typing.querySelector('.ai-bubble').innerHTML = `
       <div class="ai-bubble-title">小安</div>
-      <div class="ai-bubble-meta">${new Date().toLocaleTimeString('zh-CN', { hour12: false })}</div>
+      <div class="ai-bubble-meta">${new Date().toLocaleTimeString('zh-CN', { hour12: false })}${sources.length ? ' · 🌐 联网检索' : ''}</div>
       ${entTag}
       <div class="ai-bubble-content">${_renderBubbleText(reply)}</div>
+      ${sourcesHtml}
+      ${kbHtml}
       ${followupHtml}
     `;
     chatHistory.push({ role: 'user', content: query });

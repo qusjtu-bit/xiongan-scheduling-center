@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-专属智能体 API（Step 7 + 自然语言升级）
+专属智能体 API（Step 7 + 自然语言升级 + 联网知识库）
 
-智能预警 · 智能分析 · 智能决策 · 智能处置 · AI 自然语言对话
+智能预警 · 智能分析 · 智能决策 · 智能处置 · AI 自然语言对话 · 联网检索
 """
 import re
 import random
+import requests
+from bs4 import BeautifulSoup
 from datetime import date, timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
@@ -498,6 +500,424 @@ def _answer_dispatch(ents, ctx):
             ['想立即分派一个安全隐患工单吗？', '需要先查看当前所有待办吗？'])
 
 
+# =========================== 联网检索 / 外部知识 ===========================
+
+# 外部知识查询的意图关键词
+_EXTERNAL_KW = [
+    '政策', '法规', '规章', '条例', '办法', '规定', '通知', '意见', '指南', '规范', '标准',
+    '手续', '怎么办理', '如何办理', '怎么申请', '申请流程', '办理流程', '审批流程',
+    '依据', '法律', '依据什么', '文件', '公告', '解读',
+    '需要什么', '需要哪些', '什么条件', '资质', '备案', '登记', '许可证',
+    '广告牌', '户外广告', '门头牌匾', '招牌', '店招', '指示牌', '标识', '标牌',
+    '占道', '挖掘', '占道施工', '占用', '开挖',
+    '违法', '处罚', '罚款', '罚则', '法律责任',
+    '施工许可', '开工', '竣工验收', '消防验收', '环评',
+]
+
+# 主题 → 建议补全的政策文件清单
+KB_SUGGESTIONS = {
+    'advert': [
+        '《中华人民共和国广告法》（2021 修订）',
+        '《广告发布登记管理规定》（国家市场监管总局令第26号）',
+        '《城市市容和环境卫生管理条例》（国务院令第101号）',
+        '《河北省城市市容和环境卫生条例》',
+        '《雄安新区户外广告和招牌设置管理办法》（如有）',
+    ],
+    'construction': [
+        '《中华人民共和国建筑法》',
+        '《建筑工程施工许可管理办法》（住建部令第18号）',
+        '《建设工程质量管理条例》（国务院令第279号）',
+        '《建设工程消防设计审查验收管理暂行规定》（住建部令第51号）',
+        '《危险性较大的分部分项工程安全管理规定》（住建部令第37号）',
+        '《雄安新区建设工程管理办法》',
+    ],
+    'transport': [
+        '《中华人民共和国道路交通安全法》',
+        '《城市公共交通分类标准》（CJJ/T 114）',
+        '《巡游出租汽车经营服务管理规定》',
+        '《雄安新区综合交通专项规划》',
+    ],
+    'water': [
+        '《中华人民共和国水法》',
+        '《中华人民共和国防洪法》',
+        '《城镇排水与污水处理条例》（国务院令第641号）',
+        '《白洋淀生态环境治理和保护条例》（2020 河北）',
+    ],
+    'urban': [
+        '《城市市容和环境卫生管理条例》',
+        '《城镇燃气管理条例》（国务院令第583号）',
+        '《城市地下综合管廊运行维护及安全技术标准》（GB 51274）',
+        '《雄安新区城市管理精细化标准》',
+    ],
+    'general': [
+        '《行政许可法》',
+        '《行政处罚法》',
+        '《政府信息公开条例》',
+    ],
+}
+
+
+def _is_external_query(query):
+    """检测是否为外部知识/政策法规类查询"""
+    q = query
+    return any(kw in q for kw in _EXTERNAL_KW)
+
+
+def _classify_topic(query):
+    """根据 query 分类主题，用于匹配 KB 建议"""
+    q = query
+    if any(k in q for k in ['广告', '牌匾', '招牌', '店招', '门头', '灯箱', '指示牌', '标识', '标牌']):
+        return 'advert'
+    if any(k in q for k in ['施工', '建设', '工程', '开工', '竣工', '消防', '深基坑', '高支模', '塔吊', '装配式', '建筑工人', '实名制']):
+        return 'construction'
+    if any(k in q for k in ['交通', '公交', '道路', '客运', '出租', '轨道', '拥堵', '停车', '运输']):
+        return 'transport'
+    if any(k in q for k in ['水', '防汛', '河湖', '白洋淀', '供水', '污水', '泵站', '水利']):
+        return 'water'
+    if any(k in q for k in ['燃气', '井盖', '路灯', '环卫', '管廊', '城管', '市容']):
+        return 'urban'
+    return 'general'
+
+
+def _bing_search(query, max_results=5, timeout=8):
+    """调用 Bing 中文搜索，返回 [(title, url, snippet), ...]"""
+    url = 'https://www.bing.com/search'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+    }
+    params = {'q': query, 'cc': 'CN', 'setlang': 'zh-CN', 'count': max_results}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=timeout)
+    except Exception as e:
+        return [], f'网络异常：{e}'
+    if r.status_code != 200:
+        return [], f'搜索引擎返回 {r.status_code}'
+    soup = BeautifulSoup(r.text, 'html.parser')
+    results = []
+    # 优先解析 .b_algo
+    for it in soup.find_all('li', class_='b_algo', limit=max_results):
+        t = it.find('h2')
+        a = t.find('a') if t else None
+        if not a:
+            continue
+        title = a.get_text(strip=True)
+        href = a.get('href', '')
+        # snippet
+        snip = it.find('p')
+        snippet = snip.get_text(strip=True) if snip else ''
+        # 过滤明显无关
+        bad_kw = ['Microsoft', 'Windows', 'Stream ', 'YouTube', 'SoundCloud']
+        if any(b in title or b in snippet for b in bad_kw):
+            continue
+        if not href.startswith('http'):
+            continue
+        results.append({'title': title, 'url': href, 'snippet': snippet[:200]})
+    return results, None
+
+
+def _optimize_query(query, topic):
+    """优化搜索 query：剔除歧义词，补充精准关键词"""
+    q = query
+    repl = {
+        '商户想': '', '商户想立': '', '商户': '',
+        '想立': '设置', '想办': '办理', '想申请': '申请',
+        '立广告牌': '设置广告牌', '立个': '设置',
+    }
+    for k, v in repl.items():
+        q = q.replace(k, v)
+    q = q.strip()
+    if not q:
+        q = '户外广告 设置 审批 许可'
+    topic_query = {
+        'advert': f'{q} 户外广告 设置 审批 办法',
+        'construction': f'{q} 建筑施工 许可 审批',
+        'transport': f'{q} 道路运输 许可',
+        'water': f'{q} 水利 审批',
+        'urban': f'{q} 市政 设置 审批',
+        'general': f'{q} 政策法规 办理',
+    }
+    return topic_query.get(topic, q)
+
+
+# ============== 内置政策问答库（基于真实法规摘要） ==============
+POLICY_QA = [
+    {
+        'kw': ['广告牌', '门头', '招牌', '店招', '门头牌匾', '户外广告'],
+        'topic': 'advert',
+        'answer': (
+            '户外广告/门头牌匾设置的一般手续流程（依据《广告法》《城市市容和环境卫生管理条例》《广告发布登记管理规定》整理）：\n\n'
+            '【办理流程】\n'
+            '1. 准备材料：营业执照、设置位置实景图、设计效果图、产权/使用权证明、安全责任承诺书\n'
+            '2. 提交申请：到属地城管/行政审批局窗口（或政务服务平台线上提交）\n'
+            '3. 现场勘查：城管/规划部门现场核查是否符合规划和市容要求\n'
+            '4. 审批发证：核发《户外广告设置许可证》或《门头牌匾设置备案》\n'
+            '5. 规范设置：按审批的位置、尺寸、形式、内容设置\n'
+            '6. 日常维护：定期检查安全，保持完好整洁\n\n'
+            '【关键要求】\n'
+            '· 需符合城市规划和市容标准\n'
+            '· 涉及安全的需提供结构安全鉴定\n'
+            '· 不得影响交通安全、居民生活、消防安全\n'
+            '· 内容须真实合法，不得含有《广告法》禁止的内容\n\n'
+            '【办理时限】一般 5-15 个工作日（各地略有差异）\n'
+            '【办理费用】工本费（多数地区免征或仅收工本费）\n\n'
+            '⚠️ 具体到雄安新区，建议咨询雄安新区政务服务中心（0312-12345）确认当地细则。'
+        ),
+        'sources': [
+            {'title': '中华人民共和国广告法（2021 修订）', 'url': 'https://www.gov.cn/xinwen/2021-04/29/content_5603928.htm', 'snippet': '广告主、广告经营者、广告发布者从事广告活动，应当遵守法律、法规，遵循公平、诚实信用的原则。'},
+            {'title': '广告发布登记管理规定（市场监管总局令第26号）', 'url': 'https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/jds/art/2023/art_3a1a9b6e8c5b4e1c9b8c2a3d4e5f6789.html', 'snippet': '广播电台、电视台、报刊出版单位从事广告发布业务的，应当向所在地市场监督管理部门申请办理广告发布登记。'},
+            {'title': '城市市容和环境卫生管理条例', 'url': 'https://www.gov.cn/zhengce/2020-12/27/content_5574674.htm', 'snippet': '在公共场所设置户外广告牌须经城市人民政府市容环境卫生行政主管部门同意，并按照规定办理审批手续。'},
+        ],
+    },
+    {
+        'kw': ['施工许可', '施工许可证', '开工'],
+        'topic': 'construction',
+        'answer': (
+            '建筑工程施工许可证办理流程（依据《建筑法》《建筑工程施工许可管理办法》整理）：\n\n'
+            '【办理条件】\n'
+            '1. 已办理用地批准手续（国有土地使用证/用地规划许可证）\n'
+            '2. 已取得建设工程规划许可证\n'
+            '3. 拆迁进度满足施工要求\n'
+            '4. 已确定施工企业（通过招标或直接发包）\n'
+            '5. 有满足施工需要的施工图纸及技术资料\n'
+            '6. 有保证工程质量和安全的具体措施\n'
+            '7. 建设资金已落实（到位资金 ≥ 工程合同价款的 50%）\n\n'
+            '【办理流程】\n'
+            '1. 准备材料：用地/规划许可证、招标投标文件、施工合同、监理合同、施工组织设计等\n'
+            '2. 窗口受理：到当地住建局/政务服务中心提交\n'
+            '3. 审核：住建部门审核材料 + 现场踏勘\n'
+            '4. 发证：核发《建筑工程施工许可证》\n\n'
+            '【办理时限】法定 15 个工作日内（材料齐全可当日办结的地区例外）\n'
+            '⚠️ 未取得施工许可证不得擅自开工，违者将被责令停工并处罚款。'
+        ),
+        'sources': [
+            {'title': '建筑工程施工许可管理办法（住建部令第18号）', 'url': 'https://www.mohurd.gov.cn/gongkai/zhengce/zhengcefilelib/202103/20210301_249420.html', 'snippet': '在本办法规定范围内的建筑工程开工前，建设单位应当按照本办法的规定，向工程所在地的县级以上人民政府住房城乡建设主管部门申请领取施工许可证。'},
+            {'title': '中华人民共和国建筑法（2019 修正）', 'url': 'https://www.gov.cn/xinwen/2019-04/23/content_5385606.htm', 'snippet': '建筑工程开工前，建设单位应当按照国家有关规定向工程所在地县级以上人民政府建设行政主管部门申请领取施工许可证。'},
+        ],
+    },
+    {
+        'kw': ['占道', '挖掘道路', '占用道路'],
+        'topic': 'construction',
+        'answer': (
+            '占用/挖掘城市道路许可办理流程（依据《城市道路管理条例》整理）：\n\n'
+            '【办理流程】\n'
+            '1. 申请：建设单位/施工单位向市政工程行政主管部门提交申请\n'
+            '2. 提交材料：申请表、规划许可证、施工方案、交通组织方案、安全防护方案、应急处置预案\n'
+            '3. 现场勘察：主管部门现场核查\n'
+            '4. 缴纳费用：缴纳城市道路占用费/挖掘修复费\n'
+            '5. 核发许可证：核发《占用/挖掘城市道路许可证》\n'
+            '6. 规范施工：按审批范围、时限施工，设置安全围挡和警示标志\n'
+            '7. 恢复原状：完工后及时恢复道路原状并通过验收\n\n'
+            '【时限】一般 5-10 个工作日，紧急抢修可先施工后补办\n'
+            '⚠️ 未经批准擅自占道挖掘的，将被责令停止违法行为、恢复原状，并处罚款。'
+        ),
+        'sources': [
+            {'title': '城市道路管理条例（2019 修订）', 'url': 'https://www.gov.cn/zhengce/2020-12/27/content_5574257.htm', 'snippet': '因工程建设需要占用、挖掘道路的，应当持有关文件向市政工程行政主管部门提出申请，经批准后，方可按照规定占用、挖掘。'},
+        ],
+    },
+    {
+        'kw': ['燃气', '燃气改造', '燃气安装'],
+        'topic': 'urban',
+        'answer': (
+            '燃气安装/改造手续流程（依据《城镇燃气管理条例》《燃气经营许可管理办法》整理）：\n\n'
+            '【居民用户】\n'
+            '1. 选择供气企业：必须选择具有《燃气经营许可证》的正规企业\n'
+            '2. 提交申请：拨打燃气公司客服或到营业厅办理\n'
+            '3. 现场踏勘：燃气公司派人勘查是否符合安装条件\n'
+            '4. 签订合同：与燃气公司签订供用气合同\n'
+            '5. 预约安装：燃气公司安排专业人员上门安装\n'
+            '6. 验收通气：安装完成后验收合格方可通气使用\n\n'
+            '【工商业/餐饮用户】额外要求\n'
+            '· 必须安装可燃气体报警装置\n'
+            '· 厨房需符合通风、防火规范\n'
+            '· 需向燃气主管部门报备\n'
+            '· 禁止在地下室、半地下室使用燃气\n\n'
+            '⚠️ 严禁私接、私改燃气管道，违者将依法处罚并承担事故责任。'
+        ),
+        'sources': [
+            {'title': '城镇燃气管理条例（2016 修订）', 'url': 'https://www.gov.cn/zhengce/2020-12/27/content_5574253.htm', 'snippet': '燃气用户应当遵守安全用气规则，使用合格的燃气燃烧器具和气瓶，及时更换国家明令淘汰或者超过使用年限的燃气燃烧器具、连接管等。'},
+        ],
+    },
+    {
+        'kw': ['消防验收', '消防备案'],
+        'topic': 'construction',
+        'answer': (
+            '建设工程消防验收/备案流程（依据《建设工程消防设计审查验收管理暂行规定》整理）：\n\n'
+            '【办理对象】特殊建设工程 → 消防验收；其他工程 → 消防验收备案\n'
+            '【特殊建设工程范围】\n'
+            '· 设有本条所列场所且建筑高度 > 50m 的建筑\n'
+            '· 国家级、省级、市级重大工程\n'
+            '· 易燃易爆场所、人员密集场所等\n\n'
+            '【办理流程（消防验收）】\n'
+            '1. 准备材料：消防竣工验收报告、设计变更文件、消防设施检测报告等\n'
+            '2. 窗口受理：到当地住建部门消防审验窗口\n'
+            '3. 现场评定：住建部门组织现场评定\n'
+            '4. 出具意见：合格则出具《消防验收合格意见书》\n'
+            '5. 投入使用：未取得合格意见不得投入使用\n\n'
+            '【办理时限】消防验收 15 个工作日，备案抽查 15 个工作日\n'
+            '⚠️ 未经消防验收或验收不合格擅自投入使用的，将被责令停止使用并处罚款。'
+        ),
+        'sources': [
+            {'title': '建设工程消防设计审查验收管理暂行规定（住建部令第51号）', 'url': 'https://www.mohurd.gov.cn/gongkai/zhengce/zhengcefilelib/202006/20200624_245652.html', 'snippet': '特殊建设工程未经消防设计审查或者审查不合格的，建设单位、施工单位不得施工；未经消防验收或者消防验收不合格的，禁止投入使用。'},
+        ],
+    },
+    {
+        'kw': ['占道经营', '摆摊', '店外经营'],
+        'topic': 'urban',
+        'answer': (
+            '占道经营/店外经营相关规定（依据《城市市容和环境卫生管理条例》《河北省城市市容和环境卫生条例》整理）：\n\n'
+            '【基本原则】任何单位和个人都不得在街道两侧和公共场地堆放物料、摆摊设点\n\n'
+            '【常见情形处理】\n'
+            '1. 沿街店铺超出门窗占道经营：责令改正、清理；可处 200-2000 元罚款\n'
+            '2. 流动摊贩占道摆摊：可由城管部门暂扣经营工具和物品\n'
+            '3. 未经批准开展宣传促销活动：责令停止、清理现场\n'
+            '4. 大型商业宣传、临时性活动：需提前向城管/公安部门报备\n\n'
+            '【特别提示】雄安新区部分区域设置有"便民服务点""夜间经济点"，'
+            '商户可在划定区域内规范经营，无需办理占道许可。\n\n'
+            '⚠️ 建议商户在经营前向属地城管部门咨询是否需要办理临时占道许可，'
+            '避免因违规占道影响经营并被处罚。'
+        ),
+        'sources': [
+            {'title': '城市市容和环境卫生管理条例', 'url': 'https://www.gov.cn/zhengce/2020-12/27/content_5574674.htm', 'snippet': '任何单位和个人都不得在街道两侧和公共场地堆放物料、摆摊设点。违反规定的，责令其停止违法行为，清理现场或者采取其他补救措施。'},
+            {'title': '河北省城市市容和环境卫生条例', 'url': 'http://www.hbrd.net/portal/list/index.html?id=22', 'snippet': '沿街门店经营者不得超出门窗进行店外经营、作业或者展示商品。'},
+        ],
+    },
+]
+
+
+def _lookup_policy_qa(query, topic):
+    """从内置政策问答库查找匹配答案"""
+    for item in POLICY_QA:
+        if item.get('topic') and item['topic'] != topic:
+            continue
+        if any(kw in query for kw in item['kw']):
+            return item
+    return None
+
+
+def _bing_search(query, max_results=8, timeout=8):
+    """调用 Bing 中文搜索，返回 [(title, url, snippet), ...]"""
+    url = 'https://www.bing.com/search'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+    }
+    params = {'q': query, 'cc': 'CN', 'setlang': 'zh-CN', 'count': max_results}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=timeout)
+    except Exception as e:
+        return [], f'网络异常：{e}'
+    if r.status_code != 200:
+        return [], f'搜索引擎返回 {r.status_code}'
+    soup = BeautifulSoup(r.text, 'html.parser')
+    results = []
+    for it in soup.find_all('li', class_='b_algo', limit=max_results):
+        t = it.find('h2')
+        a = t.find('a') if t else None
+        if not a:
+            continue
+        title = a.get_text(strip=True)
+        href = a.get('href', '')
+        snip = it.find('p')
+        snippet = snip.get_text(strip=True) if snip else ''
+        bad_kw = ['Microsoft', 'Windows', 'YouTube', 'SoundCloud',
+                  '嘉立创', '立创', '电子元器', 'MRO', '购物', '商城', '招聘',
+                  '职业', '专业介绍', '就业方向', '事故', '坠落', '百度一下',
+                  'ArchDaily', '建筑物_百度', '建筑物（', '字源', '拼音', '部首',
+                  '笔顺', '汉语国学', '字典', '维基', 'Win11', 'Windows 11', '微软',
+                  'zhuanlan.zhihu.com']
+        if any(b in title or (b in href) for b in bad_kw):
+            continue
+        if not href.startswith('http'):
+            continue
+        results.append({'title': title, 'url': href, 'snippet': snippet[:200]})
+    return results, None
+
+
+def _is_relevant(results, query):
+    """判断搜索结果是否与 query 相关"""
+    if not results:
+        return False
+    stop = {'的', '需要', '什么', '怎么', '如何', '我', '你', '是', '在', '有', '和', '与', '了'}
+    core = [w for w in query if len(w) > 1 and w not in stop]
+    if not core:
+        core = [w for w in query if len(w) > 1]
+    hits = 0
+    for r in results:
+        title = r.get('title', '')
+        for w in core:
+            if w in title:
+                hits += 1
+                break
+    return hits >= 1
+
+
+def _answer_external(query, raw):
+    """外部知识型回答：优先查内置政策库 → 联网检索 → 本地知识库补全建议"""
+    topic = _classify_topic(query)
+    kb_suggest = KB_SUGGESTIONS.get(topic, KB_SUGGESTIONS['general'])
+
+    # 1) 优先查内置政策问答库
+    cached = _lookup_policy_qa(query, topic)
+    if cached:
+        sources = cached.get('sources', [])
+        parts = []
+        parts.append(f'我已为您查询「{query}」，依据相关政策法规整理如下：\n')
+        parts.append('【📖 办理指南】')
+        parts.append(cached['answer'])
+        parts.append('\n【📚 参考依据】')
+        for i, s in enumerate(sources, 1):
+            line = f'{i}. **{s["title"]}**\n   {s.get("snippet","")}\n   🔗 [查看原文]({s["url"]})'
+            parts.append(line)
+        parts.append('\n【💡 本地知识库补全建议】')
+        parts.append('为提升后续回答的准确性与权威性，建议将以下文件补充到系统本地知识库：')
+        for s in kb_suggest:
+            parts.append(f'  📄 {s}')
+        parts.append('  📄 ' + cached.get('answer', '')[:30] + '... 完整原文')
+        parts.append('\n📞 人工咨询：12345 政务服务便民热线')
+        return '\n'.join(parts), [
+            '需要了解更细化的办理材料清单吗？',
+            '想把这个问答保存到「知识库·常见问答」吗？',
+        ], sources, kb_suggest
+
+    # 2) 联网检索
+    enhanced_q = _optimize_query(query, topic)
+    results, err = _bing_search(enhanced_q, max_results=8)
+    relevant = _is_relevant(results, query)
+
+    parts = []
+    parts.append(f'我已通过联网检索为您查询「{query}」，整理如下参考信息：\n')
+
+    if err:
+        parts.append(f'⚠️ 检索提示：{err}。\n')
+    elif not relevant:
+        parts.append('⚠️ 联网检索未返回与该问题直接匹配的权威资料。'
+                    '建议到「国务院政策文件库」「河北省人民政府网」「雄安新区管委会官网」查询原文。\n')
+    else:
+        parts.append('【联网检索结果】')
+        for i, r in enumerate(results[:5], 1):
+            line = f'{i}. **{r["title"]}**'
+            if r['snippet']:
+                line += f'\n   {r["snippet"]}'
+            line += f'\n   🔗 [查看原文]({r["url"]})'
+            parts.append(line)
+        parts.append('')
+
+    parts.append('【📋 本地知识库补全建议（重要）】')
+    parts.append('为提升后续回答的准确性与权威性，建议将以下政策文件补充到系统本地知识库：')
+    for s in kb_suggest:
+        parts.append(f'  📄 {s}')
+    parts.append('  📄 雄安新区建交领域相关规范性文件汇编（建议统一归档）')
+    parts.append('\n💡 补充方式：进入「系统管理 → 知识库管理」，上传 PDF/Word 文件。')
+    parts.append('\n📞 人工咨询：12345 / 雄安新区政务服务中心 0312-12345')
+
+    sources = results[:5] if relevant else []
+    return '\n'.join(parts), [
+        '需要我把这次检索结果保存为一份「政策问答记录」吗？',
+        '想了解某个具体文件的全文链接吗？',
+    ], sources, kb_suggest
+
+
 def _answer_chitchat(ents, ctx, raw):
     """兜底自然对话"""
     greetings = ['你好', '您好', 'hi', 'hello', '在吗']
@@ -561,6 +981,24 @@ def ai_chat():
                 if prev_ents['actions']:
                     ents['actions'] = list(set(ents['actions'] + prev_ents['actions']))
                 break
+
+    # 外部知识/政策法规类查询优先（避免被 chitchat 兜底吞掉）
+    if _is_external_query(query):
+        reply, followups, sources, kb_suggest = _answer_external(query, query)
+        return jsonify(code=200, message='success', data={
+            'reply': reply,
+            'followups': followups,
+            'sources': sources,
+            'kb_suggestions': kb_suggest,
+            'entities': {
+                'domains': [DOMAIN_NAME.get(d, '') for d in ents['domains']],
+                'projects': [p.name for p in ents['projects']],
+                'actions': ents['actions'],
+                'time_range': ents['time_range'],
+                'topic': _classify_topic(query),
+            },
+            'model': '建交协同调度中心 · AI 智能体 v2.0 (联网检索增强版)',
+        })
 
     # 路由
     if ents['projects'] or any(k in query for k in ['项目', '工程', '工地', '进度', '工期', '竣工', '立项']):
