@@ -342,7 +342,7 @@ async function renderSystem(route) {
 
 /* ---------- 建交数据中枢 ---------- */
 async function renderDataCenter() {
-  const tabs = [['overview', '📈 概览'], ['resources', '📁 数据资源目录'], ['indicators', '📊 指标看板']];
+  const tabs = [['overview', '📈 概览'], ['resources', '📁 数据资源目录'], ['indicators', '📊 指标看板'], ['governance', '🔗 数据治理']];
   let html = `
     <div class="page-head"><div class="page-title">建交数据中枢<small>统一数据资源管理与指标监控</small></div></div>
     <div class="tabs">${tabs.map(([k, name]) => `<div class="subtab ${k === dataTab ? 'active' : ''}" onclick="switchDataTab('${k}')">${name}</div>`).join('')}</div>
@@ -352,6 +352,7 @@ async function renderDataCenter() {
   if (dataTab === 'overview') await renderDataOverview();
   else if (dataTab === 'resources') await renderDataResources();
   else if (dataTab === 'indicators') await renderDataIndicators();
+  else if (dataTab === 'governance') await renderDataGovernance();
 }
 
 function switchDataTab(tab) { dataTab = tab; renderDataCenter(); }
@@ -496,6 +497,152 @@ async function showIndicatorTrend(code, name, unit) {
           <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);color:var(--txt);font-weight:600;font-size:12px">${v.value}</span>
         </div>${v.period}</div>`;
     }).join('')}</div>`;
+}
+
+/* -- 数据治理：一个数据一个源头 -- */
+async function renderDataGovernance() {
+  const body = document.getElementById('dcBody');
+  body.innerHTML = '<div class="loading">加载数据治理信息...</div>';
+
+  const [gov, resList, indList] = await Promise.all([
+    api('/api/data-governance'),
+    api('/api/data-resources'),
+    api('/api/indicators'),
+  ]);
+
+  if (!gov || gov.code !== 200) { body.innerHTML = '<div class="empty">加载失败</div>'; return; }
+  const g = gov.data;
+
+  const domNames = { 1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理', 5: '综合' };
+  const deptIcon = {
+    '办公室': '📋', '政策法规处': '⚖️', '政务服务处': '🏛️', '城乡发展处': '🏗️',
+    '房屋管理处': '🏠', '工程质量安全处': '🛡️', '建筑市场处': '📐', '综合交通组': '🚌',
+    '水利组': '💧', '城市管理处': '🏙️', '城市建设监察处': '🔍', '信息化处': '💻'
+  };
+
+  let html = '';
+
+  // ===== 一、治理总览卡片 =====
+  html += `<div class="gov-header">
+    <div class="gov-badge">🔗 一个数据 · 一个源头</div>
+    <div class="gov-sub">每项政务数据有且仅有一个权威来源系统、一个归属责任处室、一个明确责任人</div>
+  </div>`;
+
+  html += `<div class="stat-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+    <div class="stat-box"><div class="lab">数据资源总数</div><div class="num">${g.resource_count}</div></div>
+    <div class="stat-box"><div class="lab">标准指标数</div><div class="num">${g.indicator_count}</div></div>
+    <div class="stat-box"><div class="lab">处室覆盖率</div><div class="num" style="color:${g.coverage.overall_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.overall_pct}%</div></div>
+    <div class="stat-box"><div class="lab">源头系统数</div><div class="num">${g.source_systems.length}</div></div>
+    <div class="stat-box"><div class="lab">责任人明确率</div><div class="num" style="color:${g.coverage.resource_person_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.resource_person_pct}%</div></div>
+  </div>`;
+
+  // ===== 二、处室数据归属分布 =====
+  html += `<div class="panel" style="margin-bottom:20px">
+    <div class="panel-head"><div class="t">📊 处室数据归属分布（一处室一颜色，谁的数据谁负责）</div></div>
+    <div class="gov-dept-grid">`;
+  const sortedDepts = (g.dept_ownership || []).sort((a, b) => (b.resources + b.indicators) - (a.resources + a.indicators));
+  for (const d of sortedDepts) {
+    const total = d.resources + d.indicators;
+    const pct = g.total_items > 0 ? Math.round(total / g.total_items * 100) : 0;
+    html += `<div class="gov-dept-card">
+      <div class="gov-dept-icon">${deptIcon[d.dept] || '📌'}</div>
+      <div class="gov-dept-name">${d.dept}</div>
+      <div class="gov-dept-bar-wrap"><div class="gov-dept-bar" style="width:${Math.max(pct, 2)}%"></div></div>
+      <div class="gov-dept-nums"><span>资源 ${d.resources}</span><span>指标 ${d.indicators}</span><span class="gov-dept-pct">${pct}%</span></div>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  // ===== 三、数据资源源头详表 =====
+  const resources = (resList && resList.code === 200) ? (resList.data || []) : [];
+  html += `<div class="panel" style="margin-bottom:20px">
+    <div class="panel-head"><div class="t">📁 数据资源源头详表<small style="font-weight:400;margin-left:8px;color:var(--txt-3)">每行 = 一条数据 + 一个源头</small></div></div>
+    <div class="gov-table-wrap">
+    <table class="tbl gov-tbl">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        <th style="width:130px">数据名称</th>
+        <th style="width:64px">领域</th>
+        <th style="width:60px">类型</th>
+        <th style="width:140px">唯一源头系统</th>
+        <th style="width:80px">责任处室</th>
+        <th style="width:60px">责任人</th>
+        <th style="width:56px">更新</th>
+        <th style="width:52px">质量</th>
+      </tr></thead>
+      <tbody>`;
+
+  if (resources.length === 0) {
+    html += `<tr><td colspan="9" class="text-center" style="color:var(--txt-3);padding:24px">暂无数据资源</td></tr>`;
+  } else {
+    resources.forEach((r, i) => {
+      const qCls = r.quality_status === '良好' ? 'q-good' : r.quality_status === '一般' ? 'q-ok' : 'q-bad';
+      html += `<tr>
+        <td style="color:var(--txt-3)">${i + 1}</td>
+        <td class="gov-res-name" title="${r.description || ''}">${r.name}</td>
+        <td><span class="tag tag-blue" style="font-size:11px">${r.domain_name}</span></td>
+        <td><span class="gov-type-tag">${r.data_type || '-'}</span></td>
+        <td class="gov-src-cell">${r.source_system || '-'}</td>
+        <td><span class="dept-chip">${r.owner_dept || '—'}</span></td>
+        <td style="font-weight:500">${r.owner_person || '—'}</td>
+        <td><span class="gov-freq">${r.update_freq || '-'}</span></td>
+        <td><span class="gov-qual ${qCls}">${r.quality_status || '-'}</span></td>
+      </tr>`;
+    });
+  }
+  html += `</tbody></table></div></div>`;
+
+  // ===== 四、指标源头详表 =====
+  const indicators = (indList && indList.code === 200) ? (indList.data || []) : [];
+  html += `<div class="panel" style="margin-bottom:20px">
+    <div class="panel-head"><div class="t">📊 标准指标源头详表<small style="font-weight:400;margin-left:8px;color:var(--txt-3)">${indicators.length}项指标，每项有唯一责任处室</small></div></div>
+    <div class="gov-table-wrap">
+    <table class="tbl gov-tbl">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        <th style="width:60px">编码</th>
+        <th style="width:120px">指标名称</th>
+        <th style="width:64px">领域</th>
+        <th style="width:120px">数据源头</th>
+        <th style="width:80px">责任处室</th>
+        <th style="width:60px">责任人</th>
+        <th style="width:56px">更新</th>
+      </tr></thead>
+      <tbody>`;
+
+  if (indicators.length === 0) {
+    html += `<tr><td colspan="8" class="text-center" style="color:var(--txt-3);padding:24px">暂无指标</td></tr>`;
+  } else {
+    indicators.forEach((ind, i) => {
+      html += `<tr>
+        <td style="color:var(--txt-3)">${i + 1}</td>
+        <td><code>${ind.code}</code></td>
+        <td class="gov-res-name">${ind.name} <span style="font-size:11px;color:var(--txt-3)">${ind.unit}</span></td>
+        <td><span class="tag tag-blue" style="font-size:11px">${ind.domain_name}</span></td>
+        <td class="gov-src-cell">${ind.source_system || '-'}</td>
+        <td><span class="dept-chip">${ind.owner_dept || '—'}</span></td>
+        <td style="font-weight:500">${ind.owner_person || '—'}</td>
+        <td><span class="gov-freq">${ind.update_freq || '-'}</span></td>
+      </tr>`;
+    });
+  }
+  html += `</tbody></table></div></div>`;
+
+  // ===== 五、源头系统清单 =====
+  html += `<div class="panel">
+    <div class="panel-head"><div class="t">🔌 数据源头系统清单<small style="font-weight:400;margin-left:8px;color:var(--txt-3)">共 ${g.source_systems.length} 个源头系统</small></div></div>
+    <div class="source-grid">`;
+  for (const s of g.source_systems) {
+    html += `<div class="source-item">
+      <span class="src-dot dot-green"></span>
+      <span class="src-name">${s.system}</span>
+      <span class="src-freq">${s.item_count} 项数据</span>
+      <span class="src-time" style="color:var(--green)">◎ 唯一源头</span>
+    </div>`;
+  }
+  html += `</div></div>`;
+
+  body.innerHTML = html;
 }
 
 /* ---------- 专属智能体 ---------- */

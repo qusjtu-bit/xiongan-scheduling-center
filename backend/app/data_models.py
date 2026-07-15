@@ -16,9 +16,13 @@ class DataResource(db.Model):
     code = db.Column(db.String(64), unique=True, nullable=False, comment='资源编码')
     name = db.Column(db.String(128), nullable=False, comment='资源名称')
     domain = db.Column(db.SmallInteger, default=1, comment='领域：1城乡建设 2交通运输 3水利水务 4城市管理 5综合')
-    source_system = db.Column(db.String(64), comment='来源系统')
+    source_system = db.Column(db.String(64), comment='来源系统（唯一数据源头）')
     table_name = db.Column(db.String(64), comment='物理表/接口名')
-    update_freq = db.Column(db.String(16), default='每日', comment='更新频率')
+    data_type = db.Column(db.String(32), default='基础数据', comment='数据类型：基础数据/业务数据/指标数据/实时监测/文件档案')
+    update_freq = db.Column(db.String(32), default='每日', comment='更新频率：实时/每小时/每日/每周/每月/每季度/每年')
+    owner_dept = db.Column(db.String(128), default='', comment='归属更新责任处室（唯一源头处室）')
+    owner_person = db.Column(db.String(64), default='', comment='责任人')
+    quality_status = db.Column(db.String(16), default='良好', comment='数据质量状态：良好/一般/待改善')
     description = db.Column(db.Text, comment='资源描述')
     fields_schema = db.Column(db.Text, default='[]', comment='字段定义 JSON')
     record_count = db.Column(db.Integer, default=0, comment='记录数量')
@@ -30,7 +34,10 @@ class DataResource(db.Model):
             'domain': self.domain,
             'domain_name': {1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理', 5: '综合'}.get(self.domain, '综合'),
             'source_system': self.source_system, 'table_name': self.table_name,
-            'update_freq': self.update_freq, 'description': self.description,
+            'data_type': self.data_type, 'update_freq': self.update_freq,
+            'owner_dept': self.owner_dept, 'owner_person': self.owner_person,
+            'quality_status': self.quality_status,
+            'description': self.description,
             'fields_schema': self.fields_schema, 'record_count': self.record_count,
             'status': self.status,
         }
@@ -47,6 +54,10 @@ class Indicator(db.Model):
     unit = db.Column(db.String(16), default='', comment='单位')
     definition = db.Column(db.Text, comment='指标定义')
     calc_expr = db.Column(db.Text, comment='计算口径')
+    source_system = db.Column(db.String(64), default='', comment='指标数据源头系统')
+    owner_dept = db.Column(db.String(128), default='', comment='归属更新责任处室')
+    owner_person = db.Column(db.String(64), default='', comment='责任人')
+    update_freq = db.Column(db.String(32), default='每月', comment='更新频率')
     sort = db.Column(db.Integer, default=0)
     status = db.Column(db.SmallInteger, default=0)
 
@@ -56,6 +67,8 @@ class Indicator(db.Model):
             'domain': self.domain,
             'domain_name': {1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理', 5: '综合'}.get(self.domain, '综合'),
             'unit': self.unit, 'definition': self.definition, 'calc_expr': self.calc_expr,
+            'source_system': self.source_system, 'owner_dept': self.owner_dept,
+            'owner_person': self.owner_person, 'update_freq': self.update_freq,
             'sort': self.sort, 'status': self.status,
         }
 

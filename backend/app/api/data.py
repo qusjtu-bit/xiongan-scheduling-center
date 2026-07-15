@@ -7,8 +7,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, current_user
 from app import db
-from app.models import DataResource, Indicator, IndicatorData
-from app.models import ProjectInfo, BusinessLicense, TransportStation, WaterBody, MunicipalNode
+from app.data_models import DataResource, Indicator, IndicatorData
+from app.data_models import ProjectInfo, BusinessLicense, TransportStation, WaterBody, MunicipalNode
 
 data_bp = Blueprint('data', __name__)
 
@@ -52,7 +52,11 @@ def add_resource():
     r = DataResource(
         code=d.get('code', ''), name=d.get('name', ''),
         domain=d.get('domain', 1), source_system=d.get('source_system', ''),
-        table_name=d.get('table_name', ''), update_freq=d.get('update_freq', '每日'),
+        table_name=d.get('table_name', ''),
+        data_type=d.get('data_type', '基础数据'),
+        update_freq=d.get('update_freq', '每日'),
+        owner_dept=d.get('owner_dept', ''), owner_person=d.get('owner_person', ''),
+        quality_status=d.get('quality_status', '良好'),
         description=d.get('description', ''), fields_schema=d.get('fields_schema', '[]'),
         record_count=d.get('record_count', 0),
     )
@@ -68,7 +72,8 @@ def update_resource(rid):
         return jsonify(code=403, message='仅系统管理员可操作'), 403
     r = DataResource.query.get_or_404(rid)
     d = request.get_json(silent=True) or {}
-    for f in ['name', 'description', 'update_freq', 'fields_schema', 'record_count']:
+    for f in ['name', 'description', 'update_freq', 'data_type', 'owner_dept', 'owner_person',
+              'quality_status', 'fields_schema', 'record_count']:
         if f in d:
             setattr(r, f, d[f])
     db.session.commit()
@@ -217,3 +222,75 @@ def data_sources():
          'last_sync': '2026-07-06 08:10', 'records': MunicipalNode.query.count()},
     ]
     return jsonify(code=200, message='success', data=sources)
+
+
+# =========================== 数据治理概览 ===========================
+
+@data_bp.route('/data-governance', methods=['GET'])
+@jwt_required()
+def data_governance():
+    """数据治理全貌 - 一个数据一个源头"""
+    resources = DataResource.query.all()
+    indicators = Indicator.query.all()
+
+    # 按数据类型统计资源
+    type_count = {}
+    for r in resources:
+        dt = r.data_type or '未分类'
+        type_count[dt] = type_count.get(dt, 0) + 1
+
+    # 按责任处室统计（资源+指标合并）
+    dept_res = {}
+    for r in resources:
+        if r.owner_dept:
+            for dept in r.owner_dept.split(','):
+                dept = dept.strip()
+                if dept not in dept_res:
+                    dept_res[dept] = {'resources': 0, 'indicators': 0}
+                dept_res[dept]['resources'] += 1
+    for ind in indicators:
+        if ind.owner_dept:
+            for dept in ind.owner_dept.split(','):
+                dept = dept.strip()
+                if dept not in dept_res:
+                    dept_res[dept] = {'resources': 0, 'indicators': 0}
+                dept_res[dept]['indicators'] += 1
+
+    # 按质量状态统计
+    quality_count = {}
+    for r in resources:
+        qs = r.quality_status or '未评估'
+        quality_count[qs] = quality_count.get(qs, 0) + 1
+
+    # 按更新频率统计
+    freq_count = {}
+    for r in resources:
+        fq = r.update_freq or '未设定'
+        freq_count[fq] = freq_count.get(fq, 0) + 1
+
+    # 治理覆盖率
+    total_res = len(resources)
+    with_owner = sum(1 for r in resources if r.owner_dept)
+    with_person = sum(1 for r in resources if r.owner_person)
+    total_ind = len(indicators)
+    ind_with_owner = sum(1 for i in indicators if i.owner_dept)
+
+    # 源头去重列表
+    source_set = sorted(set(r.source_system for r in resources if r.source_system))
+
+    return jsonify(code=200, message='success', data={
+        'resource_count': total_res,
+        'indicator_count': total_ind,
+        'total_items': total_res + total_ind,
+        'type_distribution': [{'type': k, 'count': v} for k, v in sorted(type_count.items())],
+        'dept_ownership': [{'dept': k, **v} for k, v in sorted(dept_res.items())],
+        'quality_distribution': [{'status': k, 'count': v} for k, v in sorted(quality_count.items())],
+        'freq_distribution': [{'freq': k, 'count': v} for k, v in sorted(freq_count.items())],
+        'coverage': {
+            'resource_owner_pct': round(with_owner / total_res * 100, 1) if total_res else 0,
+            'resource_person_pct': round(with_person / total_res * 100, 1) if total_res else 0,
+            'indicator_owner_pct': round(ind_with_owner / total_ind * 100, 1) if total_ind else 0,
+            'overall_pct': round((with_owner + ind_with_owner) / (total_res + total_ind) * 100, 1) if (total_res + total_ind) else 0,
+        },
+        'source_systems': [{'system': s, 'item_count': sum(1 for r in resources if r.source_system == s)} for s in source_set],
+    })

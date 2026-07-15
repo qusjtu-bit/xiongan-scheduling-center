@@ -673,3 +673,54 @@ body {
 
 /* 毛玻璃 Topbar */
 .topbar { backdrop-filter: blur(16px); background: rgba(10,14,39,.85); }
+
+/* ========== 数据治理页 ========== */
+.gov-header {
+  text-align: center; padding: 22px 20px 18px; margin-bottom: 18px;
+  background: linear-gradient(135deg, rgba(0,212,255,.08) 0%, rgba(0,212,255,.02) 100%);
+  border: 1px solid var(--line-soft); border-radius: 12px;
+}
+.gov-badge {
+  display: inline-block; font-size: 18px; font-weight: 700; color: var(--cyan);
+  background: rgba(0,212,255,.12); padding: 6px 22px; border-radius: 24px;
+  letter-spacing: 2px; margin-bottom: 8px;
+}
+.gov-sub {
+  font-size: 13px; color: var(--txt-3); max-width: 520px; margin: 0 auto; line-height: 1.6;
+}
+
+.gov-dept-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 16px 0; }
+.gov-dept-card {
+  background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 14px; transition: all .2s;
+}
+.gov-dept-card:hover { border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,212,255,.1); }
+.gov-dept-icon { font-size: 24px; margin-bottom: 6px; }
+.gov-dept-name { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.gov-dept-bar-wrap { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; margin-bottom: 8px; overflow: hidden; }
+.gov-dept-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--blue)); border-radius: 3px; transition: width .4s; }
+.gov-dept-nums { display: flex; gap: 10px; font-size: 11px; color: var(--txt-2); }
+.gov-dept-pct { margin-left: auto; font-weight: 700; color: var(--cyan); }
+
+.gov-table-wrap { overflow-x: auto; }
+.gov-tbl { font-size: 12px; }
+.gov-tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+.gov-tbl td { padding: 8px 10px; vertical-align: middle; }
+.gov-res-name { font-weight: 600; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.gov-src-cell { font-size: 11px; color: var(--txt-2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gov-type-tag {
+  display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(58,123,213,.15); color: var(--blue); white-space: nowrap;
+}
+.gov-freq {
+  display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(0,230,118,.1); color: var(--green); white-space: nowrap;
+}
+.gov-qual { font-size: 11px; font-weight: 500; }
+.gov-qual.q-good { color: var(--green); }
+.gov-qual.q-ok { color: var(--orange); }
+.gov-qual.q-bad { color: var(--red); }
+
+/* 响应式：处室卡片在小屏2列 */
+@media (max-width: 900px) { .gov-dept-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .gov-dept-grid { grid-template-columns: 1fr; } }
