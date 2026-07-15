@@ -1346,14 +1346,27 @@ async function loadProjectDetail(pid) {
     </div>`;
   }).join('');
 
-  // 审批记录
-  const apprHTML = dd.approvals.length ? dd.approvals.map(a => `
-    <div class="appr-row">
+  // 审批记录（含操作按钮）
+  const myDeptName = _userDeptName();
+  const apprHTML = dd.approvals.length ? dd.approvals.map(a => {
+    const canAct = a.status === '待审批';
+    const myDeptMatch = myDeptName && (a.approver || '').includes(myDeptName);
+    const actionBtns = (canAct && myDeptMatch)
+      ? `<div class="appr-actions" style="margin-top:6px">
+          <button class="btn-sm btn-approve" onclick="event.stopPropagation();doApproval(${a.id},'approve',${pid})">✓ 通过</button>
+          <button class="btn-sm btn-reject" onclick="event.stopPropagation();doApproval(${a.id},'reject',${pid})">✕ 驳回</button>
+        </div>`
+      : (canAct ? `<span class="tag tag-gray" style="font-size:10px;margin-left:8px">${(a.approver || '')}办理中</span>` : '');
+    const remarkHTML = a.remark ? `<div style="font-size:11px;color:var(--txt-3);margin-top:4px">📌 ${a.remark}</div>` : '';
+    return `<div class="appr-row ${canAct && myDeptMatch ? 'appr-actionable' : ''}">
       <span class="tag ${a.status==='已通过'?'tag-green':a.status==='待审批'?'tag-orange':'tag-red'}">${a.status}</span>
       <span>${a.approval_type}</span>
       <span class="appr-date">${a.apply_date}${a.approve_date ? ' → ' + a.approve_date : ''}</span>
       <span class="appr-by">${a.approver}</span>
-    </div>`).join('') : '<div class="empty">暂无审批记录</div>';
+      ${actionBtns}
+      ${remarkHTML}
+    </div>`;
+  }).join('') : '<div class="empty">暂无审批记录</div>';
 
   detail.innerHTML = `
     <div class="panel">
@@ -1379,6 +1392,26 @@ async function loadProjectDetail(pid) {
       <div style="margin-top:18px"><div class="panel-head"><div class="t">📝 审批记录</div></div>
         <div class="appr-list">${apprHTML}</div></div>
     </div>`;
+}
+
+async function doApproval(aid, action, pid) {
+  const labels = { approve: '通过', reject: '驳回' };
+  if (!confirm(`确定${labels[action]}此项审批？${action === 'reject' ? '\n驳回后可重新提交。' : ''}`)) return;
+  
+  const res = await api('/api/projects/approvals/' + aid + '/action', {
+    method: 'POST',
+    body: JSON.stringify({ action: action, comment: '' }),
+  });
+  
+  if (res && res.code === 200) {
+    showToast(`审批已${labels[action]}`, 'success');
+    // 重新加载项目详情
+    expandedProject = pid;
+    projViewMode = 'list';
+    await renderProject();
+  } else {
+    showToast((res && res.message) || '操作失败', 'warn');
+  }
 }
 
 /* ---------- 态势大屏 ---------- */

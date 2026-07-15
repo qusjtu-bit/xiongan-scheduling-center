@@ -761,3 +761,18 @@ body {
   .tp-action-row { grid-template-columns: repeat(2, 1fr); }
   .tp-detail-grid { grid-template-columns: 1fr; }
 }
+
+/* ========== 审批操作按钮 ========== */
+.appr-actionable { background: rgba(255,179,0,.06); border-left: 3px solid var(--orange); padding-left: 12px !important; border-radius: 6px; }
+.appr-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-sm {
+  padding: 5px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s; color: #fff; white-space: nowrap;
+}
+.btn-approve { background: linear-gradient(135deg, var(--green), #00c853); }
+.btn-approve:hover { box-shadow: 0 4px 16px rgba(0,230,118,.3); transform: translateY(-1px); }
+.btn-reject { background: linear-gradient(135deg, var(--red), #d32f2f); }
+.btn-reject:hover { box-shadow: 0 4px 16px rgba(255,82,82,.3); transform: translateY(-1px); }
+.appr-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+.appr-date { font-size: 11px; color: var(--txt-3); }
+.appr-by { font-size: 11px; color: var(--txt-2); margin-left: auto; }

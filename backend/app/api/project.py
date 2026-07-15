@@ -4,12 +4,12 @@
 
 项目列表/详情、阶段时间轴、审批记录、进度预警、统计分析
 """
-from datetime import date
+from datetime import date, datetime
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, current_user
 from app import db
-from app.models import ProjectInfo, ProjectStage, ApprovalRecord, Todo
+from app.models import ProjectInfo, ProjectStage, ApprovalRecord, Todo, Message
 
 project_bp = Blueprint('project', __name__)
 
@@ -238,6 +238,69 @@ def pending_approvals():
         d['project_name'] = p.name if p else ''
         result.append(d)
     return jsonify(code=200, message='success', data={'total': len(result), 'list': result})
+
+
+# =========================== 审批操作（实务闭环） ===========================
+
+@project_bp.route('/projects/approvals/<int:aid>/action', methods=['POST'])
+@jwt_required()
+def approval_action(aid):
+    """审批通过/驳回操作"""
+    a = ApprovalRecord.query.get_or_404(aid)
+    if a.status != '待审批':
+        return jsonify(code=400, message='该审批已处理，请勿重复操作'), 400
+
+    d = request.get_json(silent=True) or {}
+    action = d.get('action', '')  # 'approve' | 'reject'
+    comment = d.get('comment', '').strip()
+
+    if action not in ('approve', 'reject'):
+        return jsonify(code=400, message='操作类型仅支持 approve/reject'), 400
+
+    now_date = date.today().isoformat()
+    operator = (current_user.real_name or current_user.username)
+    operator_dept = (current_user.dept.dept_name if current_user.dept else '')
+
+    if action == 'approve':
+        a.status = '已通过'
+        a.approve_date = now_date
+        a.remark = (a.remark or '') + f' | {operator}({operator_dept}) 批准于 {now_date}'
+        if comment:
+            a.remark += f' · 批注：{comment}'
+    else:
+        a.status = '已驳回'
+        a.remark = (a.remark or '') + f' | {operator}({operator_dept}) 驳回于 {now_date}'
+        if comment:
+            a.remark += f' · 原因：{comment}'
+
+    db.session.commit()
+
+    # 发送消息通知（局级可见）
+    p = ProjectInfo.query.get(a.project_id)
+    if p:
+        msg_title = f'审批{"通过" if action == "approve" else "驳回"}：{a.approval_type}'
+        msg_content = f'项目「{p.name}」的 {a.approval_type} 已被 {operator}({operator_dept}) {"批准" if action == "approve" else "驳回"}。{comment if comment else ""}'
+        msg = Message(
+            sender=operator,
+            title=msg_title,
+            content=msg_content,
+            msg_type=2,
+            level=2,
+            scope=1,
+            scope_id=0,
+            read_users='',
+        )
+        db.session.add(msg)
+        db.session.commit()
+
+    return jsonify(code=200, message='操作成功', data={
+        'id': a.id,
+        'status': a.status,
+        'approve_date': a.approve_date,
+        'remark': a.remark,
+        'operator': operator,
+        'operator_dept': operator_dept,
+    })
 
 
 # =========================== 专题工作台（业务实用性改造） ===========================
