@@ -1164,7 +1164,8 @@ async function loadTopicContent(cfg) {
 let projFilter = { keyword: '', ptype: '', area: '', stage: '', alert: '', my_dept: 0 };
 let projViewMode = 'card';  // card | list
 let expandedProject = null;
-let projSubTab = 'projects';  // projects | efficiency
+let projSubTab = 'projects';  // projects | pending | efficiency
+let selectedApprovals = new Set();  // 批量审批选中集合
 
 function _userDeptName() {
   return (currentUser && currentUser.dept_name) || '';
@@ -1178,7 +1179,8 @@ async function renderProject() {
 
   // 子页签
   html += `<div class="tabs" style="margin-bottom:14px">
-    <div class="subtab ${projSubTab==='projects'?'active':''}" onclick="projSubTab='projects';renderProject()">📋 项目管理</div>
+    <div class="subtab ${projSubTab==='projects'?'active':''}" onclick="projSubTab='projects';selectedApprovals.clear();renderProject()">📋 项目管理</div>
+    <div class="subtab ${projSubTab==='pending'?'active':''}" onclick="projSubTab='pending';selectedApprovals.clear();renderProject()">📝 待我审批</div>
     <div class="subtab ${projSubTab==='efficiency'?'active':''}" onclick="projSubTab='efficiency';renderProject()">📊 审批时效</div>
   </div>`;
 
@@ -1186,6 +1188,8 @@ async function renderProject() {
 
   if (projSubTab === 'efficiency') {
     await renderApprovalEfficiency();
+  } else if (projSubTab === 'pending') {
+    await renderPendingApprovals();
   } else {
     await renderProjectList();
   }
@@ -1240,6 +1244,143 @@ async function renderApprovalEfficiency() {
   html += `</tbody></table></div>`;
 
   body.innerHTML = html;
+}
+
+async function renderPendingApprovals() {
+  const body = document.getElementById('projBody');
+  body.innerHTML = '<div class="loading">加载待审批事项...</div>';
+  const myDept = _userDeptName();
+  const res = await api('/api/projects/pending-approvals');
+  if (!res || res.code !== 200) { body.innerHTML = '<div class="empty">加载失败</div>'; return; }
+  let list = res.data.list || [];
+
+  // 筛选：admin看全部，其他用户只看本处室
+  const isAdmin = currentUser && currentUser.roles && currentUser.roles.some(r => r.code === 'ADMIN');
+  const myPending = isAdmin ? list : list.filter(a => myDept && (a.approver || '').includes(myDept));
+
+  let html = '';
+
+  // 统计卡
+  html += `<div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+    <div class="stat-box" style="border-left:2px solid var(--orange)"><div class="lab">待我审批</div><div class="num" style="color:var(--orange)">${myPending.length}</div><div class="sub">${myDept || '全部处室'}</div></div>
+    <div class="stat-box"><div class="lab">超时未处理</div><div class="num" style="color:${myPending.filter(a=>a.is_overdue).length>0?'var(--red)':'var(--green)'}">${myPending.filter(a=>a.is_overdue).length}</div><div class="sub">需立即处理</div></div>
+    <div class="stat-box"><div class="lab">已选中</div><div class="num" id="batchSelectedCount" style="color:var(--cyan)">${selectedApprovals.size}</div><div class="sub">条审批事项</div></div>
+    <div class="stat-box"><div class="lab">全部待审批</div><div class="num">${list.length}</div><div class="sub">全局视角</div></div>
+  </div>`;
+
+  if (!myPending.length) {
+    html += `<div class="empty" style="padding:48px 0">🎉 暂无待审批事项${!isAdmin && myDept ? `（${myDept}）` : ''}</div>`;
+    body.innerHTML = html;
+    return;
+  }
+
+  // 表格 + checkbox
+  html += `<table class="tbl" id="pendingTbl"><thead><tr>
+    <th style="width:36px"><input type="checkbox" id="selAllAppr" onchange="toggleAllApprovals(this)" ${selectedApprovals.size === myPending.length && myPending.length > 0 ? 'checked' : ''} style="cursor:pointer"></th>
+    <th style="width:40px">#</th>
+    <th>项目名称</th>
+    <th>审批类型</th>
+    <th>申请日期</th>
+    <th>审批处室</th>
+    <th style="width:70px">状态</th>
+    <th style="width:60px">操作</th>
+  </tr></thead><tbody>`;
+
+  myPending.forEach((a, i) => {
+    const checked = selectedApprovals.has(a.id) ? 'checked' : '';
+    const overdueTag = a.is_overdue ? '<span class="tag tag-red" style="font-size:10px;margin-left:4px">超时</span>' : '';
+    html += `<tr class="${checked ? 'appr-sel' : ''}" id="appr-row-${a.id}">
+      <td><input type="checkbox" ${checked} onchange="toggleApproval(${a.id})" style="cursor:pointer"></td>
+      <td style="color:var(--txt-3)">${i + 1}</td>
+      <td>${a.project_name || '—'}${overdueTag}</td>
+      <td>${a.approval_type}</td>
+      <td>${a.apply_date}</td>
+      <td><span class="dept-chip">${a.approver || '—'}</span></td>
+      <td><span class="tag tag-orange">待审批</span></td>
+      <td>
+        <button class="btn-sm btn-approve" onclick="doApproval(${a.id},'approve',null)" title="单独通过">✓</button>
+        <button class="btn-sm btn-reject" onclick="doApproval(${a.id},'reject',null)" title="单独驳回">✕</button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+
+  // 浮动批量操作栏
+  html += `<div class="batch-bar" id="batchBar" style="display:${selectedApprovals.size > 0 ? 'flex' : 'none'}">
+    <span class="batch-info">已选 <strong id="batchCount">${selectedApprovals.size}</strong> 项</span>
+    <button class="btn-sm btn-approve" onclick="doBatchApproval('approve')">✓ 批量通过</button>
+    <button class="btn-sm btn-reject" onclick="doBatchApproval('reject')">✕ 批量驳回</button>
+    <button class="btn-ghost" onclick="selectedApprovals.clear();renderPendingApprovals()" style="font-size:12px;padding:5px 12px">取消选择</button>
+  </div>`;
+
+  body.innerHTML = html;
+}
+
+function toggleApproval(aid) {
+  if (selectedApprovals.has(aid)) {
+    selectedApprovals.delete(aid);
+  } else {
+    selectedApprovals.add(aid);
+  }
+  updateBatchBar();
+}
+
+function toggleAllApprovals(checkbox) {
+  const rows = document.querySelectorAll('#pendingTbl tbody tr');
+  if (checkbox.checked) {
+    rows.forEach(row => {
+      const id = parseInt(row.id.replace('appr-row-', ''));
+      if (id) {
+        selectedApprovals.add(id);
+        row.classList.add('appr-sel');
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) cb.checked = true;
+      }
+    });
+  } else {
+    rows.forEach(row => {
+      const id = parseInt(row.id.replace('appr-row-', ''));
+      if (id) {
+        selectedApprovals.delete(id);
+        row.classList.remove('appr-sel');
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) cb.checked = false;
+      }
+    });
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const count = document.getElementById('batchCount');
+  const countStat = document.getElementById('batchSelectedCount');
+  if (bar) bar.style.display = selectedApprovals.size > 0 ? 'flex' : 'none';
+  if (count) count.textContent = selectedApprovals.size;
+  if (countStat) countStat.textContent = selectedApprovals.size;
+}
+
+async function doBatchApproval(action) {
+  const labels = { approve: '通过', reject: '驳回' };
+  if (selectedApprovals.size === 0) { showToast('请先勾选审批事项', 'warn'); return; }
+  if (!confirm(`确定批量${labels[action]} ${selectedApprovals.size} 项审批？`)) return;
+
+  const ids = [...selectedApprovals];
+  showToast(`正在批量${labels[action]} ${ids.length} 项...`, 'info');
+  const res = await api('/api/approvals/batch-action', {
+    method: 'POST',
+    body: JSON.stringify({ ids: ids, action: action, comment: '' }),
+  });
+
+  if (res && res.code === 200) {
+    const msg = res.data.message || `批量${labels[action]}完成`;
+    showToast(`✅ ${msg}`, 'success');
+    selectedApprovals.clear();
+    await renderPendingApprovals();
+  } else {
+    showToast((res && res.message) || '批量操作失败', 'warn');
+  }
 }
 
 async function renderProjectList() {
@@ -1479,10 +1620,15 @@ async function doApproval(aid, action, pid) {
   
   if (res && res.code === 200) {
     showToast(`审批已${labels[action]}`, 'success');
-    // 重新加载项目详情
-    expandedProject = pid;
-    projViewMode = 'list';
-    await renderProjectList();
+    if (pid) {
+      // 从项目详情页操作，重新加载
+      expandedProject = pid;
+      projViewMode = 'list';
+      await renderProjectList();
+    } else {
+      // 从待审批页操作，重新加载待审批列表
+      await renderPendingApprovals();
+    }
   } else {
     showToast((res && res.message) || '操作失败', 'warn');
   }

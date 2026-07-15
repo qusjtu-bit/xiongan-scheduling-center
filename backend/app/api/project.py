@@ -232,11 +232,18 @@ def project_alerts():
 def pending_approvals():
     items = ApprovalRecord.query.filter_by(status='待审批').order_by(
         ApprovalRecord.apply_date.asc()).all()
+    today = date.today()
     result = []
     for a in items:
         p = ProjectInfo.query.get(a.project_id)
         d = a.to_dict()
         d['project_name'] = p.name if p else ''
+        # 超时判断：申请超过7天未处理
+        d['is_overdue'] = False
+        if a.apply_date:
+            d1 = _parse_date(a.apply_date)
+            if d1 and (today - d1).days > 7:
+                d['is_overdue'] = True
         result.append(d)
     return jsonify(code=200, message='success', data={'total': len(result), 'list': result})
 

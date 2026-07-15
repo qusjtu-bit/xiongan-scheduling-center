@@ -776,3 +776,19 @@ body {
 .appr-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
 .appr-date { font-size: 11px; color: var(--txt-3); }
 .appr-by { font-size: 11px; color: var(--txt-2); margin-left: auto; }
+
+/* ���量审批操作栏 */
+.batch-bar {
+  position: sticky; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px; margin-top: 16px;
+  background: linear-gradient(135deg, rgba(10,14,39,.95), rgba(20,28,58,.95));
+  border: 1px solid var(--cyan); border-radius: 12px;
+  box-shadow: 0 -4px 24px rgba(0,212,255,.15);
+  backdrop-filter: blur(10px); z-index: 50;
+}
+.batch-info { font-size: 13px; color: var(--txt-2); }
+.batch-info strong { color: var(--cyan); font-size: 16px; }
+.appr-sel { background: rgba(0,212,255,.08) !important; }
+.appr-sel td { border-color: rgba(0,212,255,.15) !important; }
+#pendingTbl tbody tr:hover { background: rgba(0,212,255,.04); }
