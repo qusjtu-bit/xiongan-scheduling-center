@@ -5,8 +5,9 @@
 项目列表/详情、阶段时间轴、审批记录、进度预警、统计分析
 """
 from datetime import date, datetime
+import io
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, current_user
 from app import db
 from app.models import ProjectInfo, ProjectStage, ApprovalRecord, Todo, Message
@@ -408,4 +409,260 @@ def topic_workbench(topic_id):
         'alerts': alert_list[:5],
         'alert_count': len(alert_list),
         'flow_stats': [{'dept': k, 'items': v} for k, v in sorted(flow_stats.items())],
+    })
+
+
+# =========================== Excel 台账导出 ===========================
+
+@project_bp.route('/projects/export', methods=['GET'])
+@jwt_required()
+def export_projects():
+    """导出项目台账为 Excel"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    items = ProjectInfo.query.order_by(ProjectInfo.id).all()
+    wb = Workbook()
+
+    # === Sheet1: 项目台账 ===
+    ws = wb.active
+    ws.title = '项目台账'
+    headers = ['序号', '项目名称', '类型', '片区', '建设单位', '施工单位', '监理单位',
+               '投资额(万元)', '建设规模', '当前阶��', '进度(%)', '开工日期', '计划竣工', '风险状态']
+    ws.append(headers)
+
+    # 表头样式
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin'),
+    )
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = thin_border
+
+    today_date = date.today()
+    for i, p in enumerate(items, 1):
+        plan_end = _parse_date(p.plan_end_date)
+        risk = '正常'
+        if p.progress >= 100:
+            risk = '已完成'
+        elif plan_end and plan_end < today_date:
+            risk = '逾期'
+        elif plan_end and plan_end <= date(2026, 9, 1) and p.progress < 80:
+            risk = '临近'
+
+        ws.append([
+            i, p.name, p.ptype, p.area, p.build_unit, p.contractor or '',
+            p.supervisor or '', round(p.invest, 1), f'{p.scale} {p.scale_unit}',
+            p.stage, p.progress, p.start_date or '', p.plan_end_date or '', risk,
+        ])
+
+    # 列宽
+    widths = [6, 28, 8, 10, 20, 20, 20, 12, 14, 10, 10, 12, 12, 8]
+    for col, w in enumerate(widths, 1):
+        ws.column_dimensions[chr(64 + col) if col <= 26 else 'A'].width = w
+
+    # === Sheet2: 审批记录台账 ===
+    ws2 = wb.create_sheet('审批记录')
+    appr_headers = ['序号', '项目名称', '审批类型', '申请日期', '审批日期', '状态', '审批人', '备注']
+    ws2.append(appr_headers)
+    for col in range(1, len(appr_headers) + 1):
+        cell = ws2.cell(row=1, column=col)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = thin_border
+
+    approvals = ApprovalRecord.query.order_by(ApprovalRecord.id).all()
+    for i, a in enumerate(approvals, 1):
+        p = ProjectInfo.query.get(a.project_id)
+        ws2.append([
+            i, p.name if p else '', a.approval_type, a.apply_date or '',
+            a.approve_date or '', a.status, a.approver or '', a.remark or '',
+        ])
+
+    appr_widths = [6, 28, 16, 12, 12, 8, 20, 40]
+    for col, w in enumerate(appr_widths, 1):
+        ws2.column_dimensions[chr(64 + col) if col <= 26 else 'A'].width = w
+
+    # === Sheet3: 阶段台账 ===
+    ws3 = wb.create_sheet('阶段里程碑')
+    stage_headers = ['序号', '项目名称', '阶段名称', '顺序', '开始日期', '计划完成', '实际完成', '状态', '责任处室', '备注']
+    ws3.append(stage_headers)
+    for col in range(1, len(stage_headers) + 1):
+        cell = ws3.cell(row=1, column=col)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = thin_border
+
+    stages = ProjectStage.query.order_by(ProjectStage.project_id, ProjectStage.stage_order).all()
+    for i, s in enumerate(stages, 1):
+        p = ProjectInfo.query.get(s.project_id)
+        ws3.append([
+            i, p.name if p else '', s.stage_name, s.stage_order,
+            s.start_date or '', s.plan_end_date or '', s.actual_end_date or '',
+            s.status, s.resp_dept or '', s.remark or '',
+        ])
+
+    # 导出
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f'建交局项目台账_{date.today().isoformat()}.xlsx'
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+# =========================== 审批时效看板 ===========================
+
+@project_bp.route('/approvals/efficiency', methods=['GET'])
+@jwt_required()
+def approval_efficiency():
+    """审批时效分析——按处室统计平均审批时长、超时率、待办积压"""
+    from collections import defaultdict
+
+    all_approvals = ApprovalRecord.query.all()
+    today_str = date.today().isoformat()
+
+    # 按审批人(处室)分组统计
+    dept_stats = defaultdict(lambda: {
+        'total': 0, 'approved': 0, 'rejected': 0, 'pending': 0,
+        'processing_days': [], 'overdue_count': 0,
+    })
+
+    for a in all_approvals:
+        approvers = (a.approver or '').split(',')
+        for dept in approvers:
+            dept = dept.strip()
+            if not dept:
+                continue
+            s = dept_stats[dept]
+            s['total'] += 1
+            if a.status == '已通过':
+                s['approved'] += 1
+                # 计算审批时长
+                if a.apply_date and a.approve_date:
+                    try:
+                        d1 = _parse_date(a.apply_date)
+                        d2 = _parse_date(a.approve_date)
+                        if d1 and d2:
+                            s['processing_days'].append((d2 - d1).days)
+                    except Exception:
+                        pass
+            elif a.status == '已驳回':
+                s['rejected'] += 1
+            elif a.status == '待审批':
+                s['pending'] += 1
+                # 判断是否超时（申请超过7天未处理）
+                if a.apply_date:
+                    try:
+                        d1 = _parse_date(a.apply_date)
+                        if d1 and (date.today() - d1).days > 7:
+                            s['overdue_count'] += 1
+                    except Exception:
+                        pass
+
+    # 构建结果
+    result = []
+    for dept, s in sorted(dept_stats.items(), key=lambda x: -x[1]['pending']):
+        avg_days = round(sum(s['processing_days']) / len(s['processing_days']), 1) if s['processing_days'] else 0
+        on_time_rate = round((s['approved'] + s['rejected']) / s['total'] * 100, 1) if s['total'] else 0
+        result.append({
+            'dept': dept,
+            'total': s['total'],
+            'approved': s['approved'],
+            'rejected': s['rejected'],
+            'pending': s['pending'],
+            'overdue': s['overdue_count'],
+            'avg_days': avg_days,
+            'on_time_rate': on_time_rate,
+            'efficiency_label': '高效' if avg_days <= 2 and s['overdue_count'] == 0
+                              else '正常' if avg_days <= 5
+                              else '待改善',
+        })
+
+    # 全局统计
+    total_all = sum(s['total'] for s in dept_stats.values())
+    pending_all = sum(s['pending'] for s in dept_stats.values())
+    overdue_all = sum(s['overdue_count'] for s in dept_stats.values())
+    all_days = []
+    for s in dept_stats.values():
+        all_days.extend(s['processing_days'])
+    avg_all = round(sum(all_days) / len(all_days), 1) if all_days else 0
+
+    return jsonify(code=200, message='success', data={
+        'departments': result,
+        'summary': {
+            'total_approvals': total_all,
+            'pending': pending_all,
+            'overdue': overdue_all,
+            'avg_days': avg_all,
+            'on_time_rate': round((total_all - overdue_all) / total_all * 100, 1) if total_all else 100,
+        },
+    })
+
+
+# =========================== 批量审批 ===========================
+
+@project_bp.route('/approvals/batch-action', methods=['POST'])
+@jwt_required()
+def batch_approval_action():
+    """批量审批通过/驳回"""
+    d = request.get_json(silent=True) or {}
+    action = d.get('action', '')
+    ids = d.get('ids', [])
+    comment = d.get('comment', '').strip()
+
+    if action not in ('approve', 'reject'):
+        return jsonify(code=400, message='操作类型仅支持 approve/reject'), 400
+    if not ids or not isinstance(ids, list):
+        return jsonify(code=400, message='请选择至少一条审批'), 400
+
+    now_date = date.today().isoformat()
+    operator = (current_user.real_name or current_user.username)
+    operator_dept = (current_user.dept.dept_name if current_user.dept else '')
+    labels = {'approve': '批准', 'reject': '驳回'}
+
+    success = 0
+    skipped = 0
+    for aid in ids:
+        a = ApprovalRecord.query.get(aid)
+        if not a or a.status != '待审批':
+            skipped += 1
+            continue
+        if action == 'approve':
+            a.status = '已通过'
+            a.approve_date = now_date
+            a.remark = (a.remark or '') + f' | {operator}({operator_dept}) 批量批准于 {now_date}'
+        else:
+            a.status = '已驳回'
+            a.remark = (a.remark or '') + f' | {operator}({operator_dept}) 批量驳回于 {now_date}'
+        if comment:
+            a.remark += f' · {comment}'
+        success += 1
+
+    db.session.commit()
+
+    # 发送消息
+    msg = Message(
+        sender=operator,
+        title=f'批量审批{labels[action]}：{success}条',
+        content=f'{operator}({operator_dept}) 批量{labels[action]}了 {success} 条审批。{comment if comment else ""}',
+        msg_type=2, level=2, scope=1, scope_id=0, read_users='',
+    )
+    db.session.add(msg)
+    db.session.commit()
+
+    return jsonify(code=200, message=f'批量操作完成：成功{success}条，跳过{skipped}条', data={
+        'success': success, 'skipped': skipped,
     })

@@ -1164,12 +1164,86 @@ async function loadTopicContent(cfg) {
 let projFilter = { keyword: '', ptype: '', area: '', stage: '', alert: '', my_dept: 0 };
 let projViewMode = 'card';  // card | list
 let expandedProject = null;
+let projSubTab = 'projects';  // projects | efficiency
 
 function _userDeptName() {
   return (currentUser && currentUser.dept_name) || '';
 }
 
 async function renderProject() {
+  let html = `<div class="page-head"><div class="page-title">🏗️ 规建管运一体化<small>工程项目全生命周期管理 · 务实高效</small></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost" onclick="exportProjectsExcel()">📥 导出台账</button>
+    </div></div>`;
+
+  // 子页签
+  html += `<div class="tabs" style="margin-bottom:14px">
+    <div class="subtab ${projSubTab==='projects'?'active':''}" onclick="projSubTab='projects';renderProject()">📋 项目管理</div>
+    <div class="subtab ${projSubTab==='efficiency'?'active':''}" onclick="projSubTab='efficiency';renderProject()">📊 审批时效</div>
+  </div>`;
+
+  document.getElementById('content').innerHTML = html + '<div id="projBody"></div>';
+
+  if (projSubTab === 'efficiency') {
+    await renderApprovalEfficiency();
+  } else {
+    await renderProjectList();
+  }
+}
+
+async function renderApprovalEfficiency() {
+  const body = document.getElementById('projBody');
+  body.innerHTML = '<div class="loading">加载审批时效数据...</div>';
+  const data = await api('/api/approvals/efficiency');
+  if (!data || data.code !== 200) { body.innerHTML = '<div class="empty">加载失败</div>'; return; }
+  const d = data.data;
+  const sm = d.summary;
+
+  let html = `<div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
+    <div class="stat-box"><div class="lab">审批总量</div><div class="num">${sm.total_approvals}</div><div class="sub">含待办 ${sm.pending} 条</div></div>
+    <div class="stat-box"><div class="lab">平均审批时长</div><div class="num">${sm.avg_days}<span class="unit">天</span></div><div class="sub">${sm.avg_days <= 2 ? '高效' : sm.avg_days <= 5 ? '正常' : '偏慢'}</div></div>
+    <div class="stat-box" style="border-left:2px solid var(--red)"><div class="lab">超时待办</div><div class="num" style="color:${sm.overdue > 0 ? 'var(--red)' : 'var(--green)'}">${sm.overdue}</div><div class="sub">${sm.overdue > 0 ? '需催办' : '无超时 ✓'}</div></div>
+    <div class="stat-box" style="border-left:2px solid var(--green)"><div class="lab">按时办结率</div><div class="num" style="color:var(--green)">${sm.on_time_rate}%</div></div>
+  </div>`;
+
+  // 处室效率排行
+  const effColor = { '高效': 'var(--green)', '正常': 'var(--cyan)', '待改善': 'var(--red)' };
+  html += `<div class="panel">
+    <div class="panel-head"><div class="t">📊 各处室审批效率排行</div></div>
+    <table class="tbl"><thead><tr>
+      <th style="width:40px">#</th><th>处室</th>
+      <th style="width:70px">总量</th><th style="width:60px">已通过</th><th style="width:60px">已驳回</th>
+      <th style="width:60px">待审批</th><th style="width:60px">超时</th>
+      <th style="width:90px">平均时长</th><th style="width:80px">按时率</th><th style="width:70px">评级</th>
+    </tr></thead><tbody>`;
+
+  if (!d.departments.length) {
+    html += '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--txt-3)">暂无审批数据</td></tr>';
+  } else {
+    d.departments.forEach((dep, i) => {
+      const overdueCls = dep.overdue > 0 ? 'style="color:var(--red);font-weight:600"' : '';
+      const pendingCls = dep.pending > 0 ? 'style="color:var(--orange);font-weight:600"' : '';
+      html += `<tr>
+        <td style="color:var(--txt-3)">${i+1}</td>
+        <td><span class="dept-chip">${dep.dept}</span></td>
+        <td>${dep.total}</td>
+        <td style="color:var(--green)">${dep.approved}</td>
+        <td style="color:var(--red)">${dep.rejected}</td>
+        <td ${pendingCls}>${dep.pending}</td>
+        <td ${overdueCls}>${dep.overdue}</td>
+        <td>${dep.avg_days > 0 ? dep.avg_days + ' 天' : '—'}</td>
+        <td>${dep.on_time_rate}%</td>
+        <td><span class="tag ${dep.efficiency_label==='高效'?'tag-green':dep.efficiency_label==='正常'?'tag-blue':'tag-red'}">${dep.efficiency_label}</span></td>
+      </tr>`;
+    });
+  }
+  html += `</tbody></table></div>`;
+
+  body.innerHTML = html;
+}
+
+async function renderProjectList() {
+  const body = document.getElementById('projBody');
   // 统计
   const stats = await api('/api/projects/stats');
   const s = (stats && stats.code === 200) ? stats.data : null;
@@ -1185,12 +1259,11 @@ async function renderProject() {
   const stages = ['', '立项', '规划', '审批', '建设', '验收', '运维'];
   const alerts = [['', '全部'], ['overdue', '逾期'], ['near_due', '临近']];
 
-  let html = `<div class="page-head"><div class="page-title">🏗️ 规建管运一体化<small>工程项目全生命周期管理 · 务实高效</small></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-ghost ${projFilter.my_dept ? 'active' : ''}" onclick="projFilter.my_dept = projFilter.my_dept ? 0 : 1; renderProject()" title="仅看本处室相关">🏢 ${projFilter.my_dept ? '本处室视图 ✓' : '全部项目'}</button>
-      <button class="btn-ghost ${projViewMode==='card'?'active':''}" onclick="projViewMode='card';renderProject()">📋 卡片</button>
-      <button class="btn-ghost ${projViewMode==='list'?'active':''}" onclick="projViewMode='list';renderProject()">📊 列表</button>
-    </div></div>`;
+  let html = `<div class="toolbar" style="flex-wrap:wrap;gap:6px;margin-bottom:14px">
+    <button class="btn-ghost ${projFilter.my_dept ? 'active' : ''}" onclick="projFilter.my_dept = projFilter.my_dept ? 0 : 1; renderProjectList()" title="仅看本处室相关">🏢 ${projFilter.my_dept ? '本处室视图 ✓' : '全部项目'}</button>
+    <button class="btn-ghost ${projViewMode==='card'?'active':''}" onclick="projViewMode='card';renderProjectList()">📋 卡片</button>
+    <button class="btn-ghost ${projViewMode==='list'?'active':''}" onclick="projViewMode='list';renderProjectList()">📊 列表</button>
+  </div>`;
 
   // 待我处理条（最高优先）
   if (myPending.length > 0) {
@@ -1200,12 +1273,12 @@ async function renderProject() {
         <div class="tp-action-label">📝 ${myDept || '本处室'} · 待审批</div>
         <div class="tp-action-hint">${myPending.map(a => a.approval_type).slice(0, 3).join('、')}</div>
       </div>
-      <div class="tp-action-card ${s && s.risk_summary.overdue > 0 ? 'alerts' : ''}" onclick="projFilter.alert='overdue';renderProject()">
+      <div class="tp-action-card ${s && s.risk_summary.overdue > 0 ? 'alerts' : ''}" onclick="projFilter.alert='overdue';renderProjectList()">
         <div class="tp-action-num" style="color:${s && s.risk_summary.overdue > 0 ? 'var(--red)' : 'var(--green)'}">${s ? s.risk_summary.overdue : 0}</div>
         <div class="tp-action-label">🚨 逾期项目</div>
         <div class="tp-action-hint">${s && s.risk_summary.overdue > 0 ? '需立即处置' : '无逾期 ✓'}</div>
       </div>
-      <div class="tp-action-card" onclick="projFilter.alert='near_due';renderProject()">
+      <div class="tp-action-card" onclick="projFilter.alert='near_due';renderProjectList()">
         <div class="tp-action-num" style="color:${s && s.risk_summary.near_due > 0 ? 'var(--orange)' : 'var(--green)'}">${s ? s.risk_summary.near_due : 0}</div>
         <div class="tp-action-label">⏰ 临近到期</div>
         <div class="tp-action-hint">${s && s.risk_summary.near_due > 0 ? '9月1日前到期' : '无临近 ✓'}</div>
@@ -1228,12 +1301,12 @@ async function renderProject() {
   html += `<div class="toolbar" style="flex-wrap:wrap;gap:6px">
     <input class="proj-search" placeholder="🔍 搜索项目名称..." value="${projFilter.keyword}" onkeyup="projFilter.keyword=this.value;renderProjectDebounced()">
     ${[['类型', types, 'ptype'], ['片区', areas, 'area'], ['阶段', stages, 'stage'], ['风险', alerts, 'alert']].map(([label, opts, key]) =>
-      `<select onchange="projFilter.${key}=this.value;renderProject()" style="background:rgba(10,14,39,.6);border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:7px;font-size:13px">
+      `<select onchange="projFilter.${key}=this.value;renderProjectList()" style="background:rgba(10,14,39,.6);border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:7px;font-size:13px">
         <option value="">${label}</option>${opts.slice(1).map(o => Array.isArray(o)
           ? `<option value="${o[0]}" ${projFilter[key]===o[0]?'selected':''}>${o[1]}</option>`
           : `<option value="${o}" ${projFilter[key]===o?'selected':''}>${o}</option>`).join('')}
       </select>`).join('')}
-    <button class="btn-ghost" onclick="Object.keys(projFilter).forEach(k=>projFilter[k]='');renderProject()">↻ 清除</button>
+    <button class="btn-ghost" onclick="Object.keys(projFilter).forEach(k=>projFilter[k]='');renderProjectList()">↻ 清除</button>
   </div>`;
 
   // 加载项目数据
@@ -1276,7 +1349,8 @@ async function renderProject() {
     }
   }
 
-  document.getElementById('content').innerHTML = html;
+  if (body) body.innerHTML = html;
+  else document.getElementById('content').innerHTML = html;
   if (expandedProject && projViewMode === 'list') {
     await loadProjectDetail(expandedProject);
   }
@@ -1285,7 +1359,7 @@ async function renderProject() {
 let renderDebounce = null;
 function renderProjectDebounced() {
   if (renderDebounce) clearTimeout(renderDebounce);
-  renderDebounce = setTimeout(() => renderProject(), 400);
+  renderDebounce = setTimeout(() => renderProjectList(), 400);
 }
 
 function renderProjectCard(p) {
@@ -1313,12 +1387,12 @@ function renderProjectCard(p) {
 async function openProjectDetail(pid) {
   projViewMode = 'list';
   expandedProject = pid;
-  await renderProject();
+  await renderProjectList();
 }
 
 async function toggleProjectDetail(pid) {
   expandedProject = expandedProject === pid ? null : pid;
-  await renderProject();
+  await renderProjectList();
 }
 
 async function loadProjectDetail(pid) {
@@ -1371,7 +1445,7 @@ async function loadProjectDetail(pid) {
   detail.innerHTML = `
     <div class="panel">
       <div class="panel-head"><div class="t">📋 ${p.name} · 详情</div>
-        <span class="more" onclick="expandedProject=null;renderProject()">✕ 收起</span></div>
+        <span class="more" onclick="expandedProject=null;renderProjectList()">✕ 收起</span></div>
 
       <div class="proj-detail-grid">
         <div><span class="proj-dl">类型</span> ${p.ptype}</div>
@@ -1408,9 +1482,31 @@ async function doApproval(aid, action, pid) {
     // 重新加载项目详情
     expandedProject = pid;
     projViewMode = 'list';
-    await renderProject();
+    await renderProjectList();
   } else {
     showToast((res && res.message) || '操作失败', 'warn');
+  }
+}
+
+async function exportProjectsExcel() {
+  showToast('正在生成台账...', 'info');
+  try {
+    const res = await fetch('/api/projects/export', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (!res.ok) throw new Error('导出失败');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `建交局项目台账_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('台账导出成功 ✓', 'success');
+  } catch (e) {
+    showToast('导出失败：' + e.message, 'warn');
   }
 }
 
