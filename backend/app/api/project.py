@@ -9,7 +9,7 @@ from datetime import date
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app import db
-from app.models import ProjectInfo, ProjectStage, ApprovalRecord
+from app.models import ProjectInfo, ProjectStage, ApprovalRecord, Todo
 
 project_bp = Blueprint('project', __name__)
 
@@ -238,3 +238,111 @@ def pending_approvals():
         d['project_name'] = p.name if p else ''
         result.append(d)
     return jsonify(code=200, message='success', data={'total': len(result), 'list': result})
+
+
+# =========================== 专题工作台（业务实用性改造） ===========================
+
+# 五大业务线 → 涉及处室映射
+TOPIC_DEPT_MAP = {
+    1: ['政务服务处', '工程质量安全处', '城乡发展处', '城市建设监察处', '房屋管理处'],
+    2: ['建筑市场处', '工程质量安全处', '城市建设监察处', '政策法规处'],
+    3: ['水利组', '城市管理处', '综合交通组'],
+    4: ['城乡发展处', '工程质量安全处', '信息化处'],
+    5: ['城市管理处', '信息化处', '房屋管理处', '综合交通组', '水利组'],
+}
+
+# 五大业务线 → 关联领域
+TOPIC_DOMAIN_MAP = {1: 1, 2: 1, 3: 3, 4: 1, 5: 4}
+
+
+@project_bp.route('/topic-workbench/<int:topic_id>', methods=['GET'])
+@jwt_required()
+def topic_workbench(topic_id):
+    """业务专题工作台——以'干活'为导向，非纯展示"""
+    if topic_id not in TOPIC_DEPT_MAP:
+        return jsonify(code=404, message=f'专题 {topic_id} 不存在'), 404
+
+    depts = TOPIC_DEPT_MAP[topic_id]
+    domain = TOPIC_DOMAIN_MAP.get(topic_id, 1)
+
+    # 1. 本业务线关联的待办事项（从 Todo）
+    todos = Todo.query.filter(
+        Todo.status.in_([0, 1])  # 待办/处理中
+    ).order_by(Todo.urgency.desc(), Todo.due_date.asc()).limit(10).all()
+    todo_list = []
+    for t in todos:
+        td = t.to_dict()
+        # 简化判断：如果待办内容提到专题相关处室
+        match = any(d in (t.title or '') for d in depts)
+        if match:
+            todo_list.append(td)
+
+    # 2. 本业务线关联的审批记录
+    approvals = ApprovalRecord.query.filter(
+        ApprovalRecord.status == '待审批'
+    ).order_by(ApprovalRecord.apply_date.asc()).all()
+    pending_approvals = []
+    for a in approvals:
+        p = ProjectInfo.query.get(a.project_id)
+        if not p:
+            continue
+        # 通过项目阶段关联处室判断是否属于本业务线
+        stages = ProjectStage.query.filter_by(project_id=a.project_id).all()
+        matched = any(any(d in (s.resp_dept or '') for d in depts) for s in stages)
+        if matched:
+            ad = a.to_dict()
+            ad['project_name'] = p.name
+            pending_approvals.append(ad)
+
+    # 3. 本业务线的项目预警
+    items = ProjectInfo.query.all()
+    today_date = date.today()
+    alert_list = []
+    for p in items:
+        if p.progress >= 100:
+            continue
+        plan_end = _parse_date(p.plan_end_date)
+        if not plan_end:
+            continue
+        # 检查项目阶段是否有本业务线处室参与
+        stages = ProjectStage.query.filter_by(project_id=p.id).all()
+        involved = any(any(d in (s.resp_dept or '') for d in depts) for s in stages)
+        if not involved:
+            continue
+        if plan_end < today_date:
+            alert_list.append({
+                'project_id': p.id, 'project_name': p.name,
+                'alert_type': 'overdue', 'days': (today_date - plan_end).days,
+                'stage': p.stage, 'progress': p.progress,
+            })
+        elif plan_end <= date(2026, 9, 1) and p.progress < 80:
+            alert_list.append({
+                'project_id': p.id, 'project_name': p.name,
+                'alert_type': 'near_due', 'stage': p.stage, 'progress': p.progress,
+                'days': (plan_end - today_date).days,
+            })
+
+    # 按紧急程度排序
+    alert_list.sort(key=lambda x: (0 if x['alert_type'] == 'overdue' else 1, -(x.get('days') or 0)))
+
+    # 4. 跨处室流转统计（各阶段审批在哪些处室停留）
+    flow_stats = {}
+    for s in ProjectStage.query.all():
+        if not s.resp_dept:
+            continue
+        for d in s.resp_dept.split(','):
+            d = d.strip()
+            if d in depts:
+                flow_stats[d] = flow_stats.get(d, 0) + 1
+
+    return jsonify(code=200, message='success', data={
+        'topic_id': topic_id,
+        'departments': depts,
+        'todos': todo_list[:5],
+        'todo_count': len(todo_list),
+        'pending_approvals': pending_approvals[:5],
+        'approval_count': len(pending_approvals),
+        'alerts': alert_list[:5],
+        'alert_count': len(alert_list),
+        'flow_stats': [{'dept': k, 'items': v} for k, v in sorted(flow_stats.items())],
+    })

@@ -724,3 +724,40 @@ body {
 /* 响应式：处室卡片在小屏2列 */
 @media (max-width: 900px) { .gov-dept-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 500px) { .gov-dept-grid { grid-template-columns: 1fr; } }
+
+/* ========== 业务专题工作台（务实改造） ========== */
+.tp-action-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.tp-action-card {
+  background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; transition: all .2s;
+  text-align: center;
+}
+.tp-action-card:hover { border-color: var(--cyan); box-shadow: 0 4px 20px var(--glow-cyan); transform: translateY(-2px); }
+.tp-action-card.has-items { border-left: 3px solid var(--cyan); }
+.tp-action-card.alerts { border-left: 3px solid var(--red); animation: alertGlow 2s ease-in-out infinite; }
+@keyframes alertGlow { 0%,100%{box-shadow:0 0 0 0 rgba(255,82,82,.3)} 50%{box-shadow:0 0 0 8px rgba(255,82,82,0)} }
+.tp-action-num { font-size: 32px; font-weight: 800; color: var(--txt); line-height: 1; }
+.tp-action-label { font-size: 13px; color: var(--txt-2); margin-top: 6px; font-weight: 500; }
+.tp-action-hint { font-size: 11px; color: var(--txt-3); margin-top: 4px; }
+
+.tp-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.tp-scroll-list { max-height: 260px; overflow-y: auto; }
+.tp-list-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft); cursor: pointer; transition: all .15s;
+}
+.tp-list-item:hover { background: rgba(0,212,255,.04); }
+.tp-list-body { flex: 1; min-width: 0; }
+.tp-list-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-list-meta { font-size: 11px; color: var(--txt-3); margin-top: 3px; }
+
+.tp-flow-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.tp-flow-dept { font-size: 12px; color: var(--txt-2); width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-flow-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden; }
+.tp-flow-bar { height: 100%; border-radius: 3px; transition: width .4s; }
+.tp-flow-num { font-size: 11px; color: var(--txt-3); font-weight: 500; min-width: 40px; text-align: right; }
+
+@media (max-width: 768px) {
+  .tp-action-row { grid-template-columns: repeat(2, 1fr); }
+  .tp-detail-grid { grid-template-columns: 1fr; }
+}

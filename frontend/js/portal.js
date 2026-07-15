@@ -1028,89 +1028,190 @@ async function renderTopic() {
 
 async function loadTopicContent(cfg) {
   const body = document.getElementById('topicBody');
-  // 渲染处室协作标签
+  
+  // 加载专题工作台数据
+  const wb = await api('/api/topic-workbench/' + topicDomain);
+  const w = (wb && wb.code === 200) ? wb.data : null;
+  
   const deptChips = cfg.departments.map(d => `<span class="dept-chip" style="font-size:11px">${d}</span>`).join(' ');
   
-  // 关键指标卡
+  // ===== 顶部：待办快览条（真正的"干活"入口）=====
+  let actionBar = '';
+  if (w) {
+    actionBar = `<div class="tp-action-row">
+      <div class="tp-action-card ${w.todo_count > 0 ? 'has-items' : ''}" onclick="navTo('/todos')">
+        <div class="tp-action-num">${w.todo_count}</div>
+        <div class="tp-action-label">📋 待办事项</div>
+        <div class="tp-action-hint">${w.todo_count > 0 ? '点击去处理' : '暂无待办 ✓'}</div>
+      </div>
+      <div class="tp-action-card ${w.approval_count > 0 ? 'has-items' : ''}" onclick="navTo('/project')">
+        <div class="tp-action-num">${w.approval_count}</div>
+        <div class="tp-action-label">📝 待审批</div>
+        <div class="tp-action-hint">${w.approval_count > 0 ? w.approval_count + ' 件待审批' : '无需审批 ✓'}</div>
+      </div>
+      <div class="tp-action-card ${w.alert_count > 0 ? 'alerts' : ''}" onclick="navTo('/project')">
+        <div class="tp-action-num" style="color:${w.alert_count > 0 ? 'var(--red)' : 'var(--green)'}">${w.alert_count}</div>
+        <div class="tp-action-label">⚠️ 预警</div>
+        <div class="tp-action-hint">${w.alert_count > 0 ? w.alert_count + ' 个预警待处置' : '一切正常 ✓'}</div>
+      </div>
+      <div class="tp-action-card" onclick="topicDomain=${topicDomain};renderTopic()">
+        <div class="tp-action-num" style="font-size:18px">↻</div>
+        <div class="tp-action-label">刷新</div>
+        <div class="tp-action-hint">获取最新数据</div>
+      </div>
+    </div>`;
+  }
+  
+  // ===== 中部：待办详情 + 预警列表（双列）=====
+  let detailSection = '';
+  if (w) {
+    const todoItems = (w.todos || []).length
+      ? w.todos.map(t => `<div class="tp-list-item" onclick="navTo('/todos')">
+        <span class="dot ${t.urgency >= 3 ? 'dot-red' : t.urgency >= 2 ? 'dot-orange' : 'dot-blue'}"></span>
+        <div class="tp-list-body"><div class="tp-list-title">${t.title}</div>
+        <div class="tp-list-meta">${t.todo_type_name || ''} · 截止 ${t.due_date || '—'}</div></div>
+        <span class="tag ${t.urgency >= 3 ? 'tag-red' : 'tag-blue'}">${t.urgency_name || ''}</span>
+      </div>`).join('')
+      : '<div class="empty" style="padding:20px">✅ 该业务线暂无待办事项</div>';
+    
+    const approvalItems = (w.pending_approvals || []).length
+      ? w.pending_approvals.map(a => `<div class="tp-list-item" onclick="openProjectDetail(${a.project_id})">
+        <span class="dot dot-orange"></span>
+        <div class="tp-list-body"><div class="tp-list-title">${a.approval_type} · ${a.project_name || ''}</div>
+        <div class="tp-list-meta">申请 ${a.apply_date || '-'} · 审批人 ${a.approver || '-'}</div></div>
+        <span class="tag tag-orange">待审批</span>
+      </div>`).join('')
+      : '<div class="empty" style="padding:20px">✅ 该业务线暂无待审批项</div>';
+    
+    const alertItems = (w.alerts || []).length
+      ? w.alerts.map(a => `<div class="tp-list-item" onclick="openProjectDetail(${a.project_id})" style="border-left:3px solid ${a.alert_type === 'overdue' ? 'var(--red)' : 'var(--orange)'}">
+        <span class="dot ${a.alert_type === 'overdue' ? 'dot-red' : 'dot-orange'}"></span>
+        <div class="tp-list-body"><div class="tp-list-title">${a.project_name || ''}</div>
+        <div class="tp-list-meta">进度 ${a.progress}% · ${a.stage || ''} · ${a.alert_type === 'overdue' ? '逾期 ' + a.days + ' 天' : a.days + '天后到期'}</div></div>
+        <span class="tag ${a.alert_type === 'overdue' ? 'tag-red' : 'tag-orange'}">${a.alert_type === 'overdue' ? '逾期' : '临近'}</span>
+      </div>`).join('')
+      : '<div class="empty" style="padding:20px">✅ 该业务线项目进度正常</div>';
+    
+    // 跨处室流转分布
+    const flowBars = (w.flow_stats || []).length
+      ? w.flow_stats.map(f => {
+          const max = Math.max(...(w.flow_stats.map(x => x.items)));
+          const pct = Math.round(f.items / max * 100);
+          return `<div class="tp-flow-row">
+            <span class="tp-flow-dept">${f.dept}</span>
+            <div class="tp-flow-bar-wrap"><div class="tp-flow-bar" style="width:${pct}%;background:${cfg.color}"></div></div>
+            <span class="tp-flow-num">${f.items} 项</span>
+          </div>`;
+        }).join('')
+      : '<div class="empty" style="padding:20px">暂无流转数据</div>';
+    
+    detailSection = `
+      <div class="tp-detail-grid">
+        <div class="panel">
+          <div class="panel-head"><div class="t">📋 待办事项</div><div class="more" onclick="navTo('/todos')">全部 →</div></div>
+          <div class="tp-scroll-list">${todoItems}</div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="t">📝 待审批</div><div class="more" onclick="navTo('/project')">查看项目 →</div></div>
+          <div class="tp-scroll-list">${approvalItems}</div>
+        </div>
+      </div>
+      <div class="tp-detail-grid">
+        <div class="panel">
+          <div class="panel-head"><div class="t">⚠️ 项目进度预警</div></div>
+          <div class="tp-scroll-list">${alertItems}</div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="t">🔀 跨处室流转分布</div></div>
+          ${flowBars}
+        </div>
+      </div>`;
+  }
+  
+  // ===== 底部：核心统计 + 亮点 =====
   const statCards = cfg.stats.map(s => `
     <div class="tp-stat-card">
       <div class="tp-stat-val">${s.value}<small>${s.unit}</small></div>
       <div class="tp-stat-label">${s.label}</div>
     </div>`).join('');
-
-  // 趋势图（简化为 mini sparkline）
-  const metricRows = cfg.metrics.map(m => {
-    const max = Math.max(...m.trend);
-    const bars = m.trend.map(v => {
-      const h = Math.round(v / max * 100);
-      return `<div class="mini-chart-bar" style="height:${h}%;background:${cfg.color}"></div>`;
-    }).join('');
-    return `<div style="margin-bottom:14px">
-      <div style="font-size:12px;color:var(--txt-2);margin-bottom:4px">${m.name}（近6个月）</div>
-      <div class="mini-chart">${bars}</div>
-      <div style="font-size:11px;color:var(--txt-3);text-align:right">最新：${m.trend[m.trend.length-1]} ${m.unit}</div>
-    </div>`;
-  }).join('');
-
-  // 亮点
   const highlightHTML = cfg.highlights.map(h => `<li>${h}</li>`).join('');
-
+  
   body.innerHTML = `
-    <div class="tp-grid">
+    ${actionBar}
+    <div class="section" style="margin-top:16px">
+      <div class="section-title">👥 协同处室</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${deptChips}</div>
+      <div style="font-size:12px;color:var(--txt-3);margin-top:4px">${cfg.desc}</div>
+    </div>
+    ${detailSection}
+    <div class="tp-grid" style="margin-top:16px">
       <div class="tp-main">
-        <div class="section">
-          <div class="section-title">👥 协同处室</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0">${deptChips}</div>
-        </div>
-        
         <div class="section">
           <div class="section-title">📊 核心统计（来源：2026上半年总结）</div>
           <div class="tp-stat-grid">${statCards}</div>
         </div>
-        
-        <div class="section">
-          <div class="section-title">📈 趋势概览</div>
-          ${metricRows}
-        </div>
       </div>
-      
       <div class="tp-side">
         <div class="section">
           <div class="section-title">✨ 工作亮点</div>
           <ul class="tp-hl-list">${highlightHTML}</ul>
-        </div>
-        <div class="section" style="margin-top:14px">
-          <div class="section-title" style="color:#ffb400">💡 数据来源</div>
-          <div style="font-size:12px;color:var(--txt-3);line-height:1.6">
-            《新区建设和交通管理系统2026年上半年工作总结和下半年工作谋划》（0714版）<br>
-            📅 更新：2026年7月
-          </div>
         </div>
       </div>
     </div>`;
 }
 
 /* ---------- 规建管一体化 ---------- */
-let projFilter = { keyword: '', ptype: '', area: '', stage: '', alert: '' };
+let projFilter = { keyword: '', ptype: '', area: '', stage: '', alert: '', my_dept: 0 };
 let projViewMode = 'card';  // card | list
 let expandedProject = null;
 
+function _userDeptName() {
+  return (currentUser && currentUser.dept_name) || '';
+}
+
 async function renderProject() {
-  // 先加载统计
+  // 统计
   const stats = await api('/api/projects/stats');
   const s = (stats && stats.code === 200) ? stats.data : null;
+  
+  // 本处室审批数据（实操入口）
+  const pendingData = await api('/api/projects/pending-approvals');
+  const pendingItems = (pendingData && pendingData.code === 200) ? (pendingData.data.list || []) : [];
+  const myDept = _userDeptName();
+  const myPending = pendingItems.filter(a => myDept && (a.approver || '').includes(myDept));
 
-  // Filters
   const types = ['', '房建', '市政', '交通', '水利', '园林'];
   const areas = ['', '启动区', '起步区', '容东片区', '昝岗片区', '白洋淀', '容城县城'];
   const stages = ['', '立项', '规划', '审批', '建设', '验收', '运维'];
   const alerts = [['', '全部'], ['overdue', '逾期'], ['near_due', '临近']];
 
-  let html = `<div class="page-head"><div class="page-title">🏗️ 规建管一体化<small>工程项目全生命周期管理</small></div>
+  let html = `<div class="page-head"><div class="page-title">🏗️ 规建管运一体化<small>工程项目全生命周期管理 · 务实高效</small></div>
     <div style="display:flex;gap:8px">
+      <button class="btn-ghost ${projFilter.my_dept ? 'active' : ''}" onclick="projFilter.my_dept = projFilter.my_dept ? 0 : 1; renderProject()" title="仅看本处室相关">🏢 ${projFilter.my_dept ? '本处室视图 ✓' : '全部项目'}</button>
       <button class="btn-ghost ${projViewMode==='card'?'active':''}" onclick="projViewMode='card';renderProject()">📋 卡片</button>
       <button class="btn-ghost ${projViewMode==='list'?'active':''}" onclick="projViewMode='list';renderProject()">📊 列表</button>
     </div></div>`;
+
+  // 待我处理条（最高优先）
+  if (myPending.length > 0) {
+    html += `<div class="tp-action-row" style="margin-bottom:14px">
+      <div class="tp-action-card has-items" style="border-left:3px solid var(--orange)">
+        <div class="tp-action-num">${myPending.length}</div>
+        <div class="tp-action-label">📝 ${myDept || '本处室'} · 待审批</div>
+        <div class="tp-action-hint">${myPending.map(a => a.approval_type).slice(0, 3).join('、')}</div>
+      </div>
+      <div class="tp-action-card ${s && s.risk_summary.overdue > 0 ? 'alerts' : ''}" onclick="projFilter.alert='overdue';renderProject()">
+        <div class="tp-action-num" style="color:${s && s.risk_summary.overdue > 0 ? 'var(--red)' : 'var(--green)'}">${s ? s.risk_summary.overdue : 0}</div>
+        <div class="tp-action-label">🚨 逾期项目</div>
+        <div class="tp-action-hint">${s && s.risk_summary.overdue > 0 ? '需立即处置' : '无逾期 ✓'}</div>
+      </div>
+      <div class="tp-action-card" onclick="projFilter.alert='near_due';renderProject()">
+        <div class="tp-action-num" style="color:${s && s.risk_summary.near_due > 0 ? 'var(--orange)' : 'var(--green)'}">${s ? s.risk_summary.near_due : 0}</div>
+        <div class="tp-action-label">⏰ 临近到期</div>
+        <div class="tp-action-hint">${s && s.risk_summary.near_due > 0 ? '9月1日前到期' : '无临近 ✓'}</div>
+      </div>
+    </div>`;
+  }
 
   // 统计条
   if (s) {
@@ -1139,9 +1240,23 @@ async function renderProject() {
   let params = [];
   Object.entries(projFilter).forEach(([k, v]) => { if (v) params.push(k + '=' + encodeURIComponent(v)); });
   const data = await api('/api/projects?' + params.join('&'));
-  const list = (data && data.code === 200) ? (data.data.list || []) : [];
+  let list = (data && data.code === 200) ? (data.data.list || []) : [];
+  
+  // 本处室视图：过滤项目（需加载阶段数据判断处室归属）
+  if (projFilter.my_dept && myDept) {
+    const filtered = [];
+    for (const p of list) {
+      const detail = await api('/api/projects/' + p.id);
+      if (detail && detail.code === 200) {
+        const stages = detail.data.stages || [];
+        const matched = stages.some(s => (s.resp_dept || '').includes(myDept));
+        if (matched) filtered.push(p);
+      }
+    }
+    list = filtered;
+  }
 
-  if (!list.length) { html += '<div class="empty">暂无匹配项目</div>'; }
+  if (!list.length) { html += '<div class="empty">' + (projFilter.my_dept ? '本处室暂无关联项目' : '暂无匹配项目') + '</div>'; }
   else if (projViewMode === 'card') {
     html += `<div class="proj-grid">${list.map(p => renderProjectCard(p)).join('')}</div>`;
   } else {
