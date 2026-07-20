@@ -7,7 +7,7 @@ let token = localStorage.getItem('token') || '';
 let currentUser = null;
 let currentRoute = '/workbench';
 let msgUnreadOnly = false;
-let dataTab = 'overview';          // 建交数据中枢当前页签
+let dataTab = 'catalog';          // 建交数据中枢当前页签
 let dataDomain = 0;                // 资源/指标领域筛选（0=全部）
 
 /* ---------- 菜单：权限编码 → 前端路由 / 图标 ---------- */
@@ -342,20 +342,131 @@ async function renderSystem(route) {
 
 /* ---------- 建交数据中枢 ---------- */
 async function renderDataCenter() {
-  const tabs = [['overview', '📈 概览'], ['resources', '📁 数据资源目录'], ['indicators', '📊 指标看板'], ['governance', '🔗 数据治理']];
+  const tabs = [['overview', '📈 概览'], ['catalog', '📋 数据清单'], ['resources', '📁 数据资源目录'], ['indicators', '📊 指标看板'], ['governance', '🔗 数据治理']];
   let html = `
-    <div class="page-head"><div class="page-title">建交数据中枢<small>统一数据资源管理与指标监控</small></div></div>
+    <div class="page-head"><div class="page-title">建交数据中枢<small>一数一源头 · 统一数据资源管理与指标监控</small></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" onclick="exportDataCatalog()">📥 导出数据清单</button>
+      </div></div>
     <div class="tabs">${tabs.map(([k, name]) => `<div class="subtab ${k === dataTab ? 'active' : ''}" onclick="switchDataTab('${k}')">${name}</div>`).join('')}</div>
     <div id="dcBody"></div>`;
   document.getElementById('content').innerHTML = html;
 
   if (dataTab === 'overview') await renderDataOverview();
+  else if (dataTab === 'catalog') await renderDataCatalog();
   else if (dataTab === 'resources') await renderDataResources();
   else if (dataTab === 'indicators') await renderDataIndicators();
   else if (dataTab === 'governance') await renderDataGovernance();
 }
 
 function switchDataTab(tab) { dataTab = tab; renderDataCenter(); }
+
+/* -- 数据清单（一数一源头详表） -- */
+let catalogFilter = { domain: 0, keyword: '' };
+async function renderDataCatalog() {
+  const body = document.getElementById('dcBody');
+  body.innerHTML = '<div class="loading">加载数据清单...</div>';
+
+  let url = '/api/data-catalog';
+  const params = [];
+  if (catalogFilter.domain) params.push('domain=' + catalogFilter.domain);
+  if (catalogFilter.keyword) params.push('keyword=' + encodeURIComponent(catalogFilter.keyword));
+  if (params.length) url += '?' + params.join('&');
+
+  const res = await api(url);
+  if (!res || res.code !== 200) { body.innerHTML = '<div class="empty">加载失败</div>'; return; }
+  const d = res.data;
+
+  const domNames = { 1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理', 5: '综合' };
+  const typeLabels = { resource: '📁 数据资源', indicator: '📊 指标数据' };
+
+  let html = '';
+
+  // 领域统计卡
+  html += `<div class="stat-row" style="grid-template-columns:repeat(${d.domain_stats.length},1fr);margin-bottom:18px">`;
+  for (const ds of d.domain_stats) {
+    html += `<div class="stat-box"><div class="lab">${ds.name}</div><div class="num">${ds.resources + ds.indicators}</div><div class="sub">资源${ds.resources} · 指标${ds.indicators}</div></div>`;
+  }
+  html += `</div>`;
+
+  // 筛选工具栏
+  html += `<div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <input class="proj-search" placeholder="🔍 搜索数据名称或描述..." value="${catalogFilter.keyword}" onkeyup="catalogFilter.keyword=this.value;catalogDebounced()" style="min-width:220px">
+    ${[[0,'全部'],[1,'🏗️城乡建设'],[2,'🚌交通运输'],[3,'💧水利水务'],[4,'🏙️城市管理'],[5,'📋综合']].map(([v, l]) =>
+      `<div class="tab ${catalogFilter.domain === v ? 'active' : ''}" onclick="catalogFilter.domain=${v};renderDataCatalog()">${l}</div>`
+    ).join('')}
+  </div>`;
+
+  // 表格
+  html += `<div style="overflow-x:auto"><table class="tbl" style="min-width:1400px"><thead><tr>
+    <th style="width:40px">#</th>
+    <th style="width:60px">类型</th>
+    <th style="width:60px">编码</th>
+    <th style="min-width:140px">数据名称</th>
+    <th style="width:90px">数据值</th>
+    <th style="width:80px">更新频率</th>
+    <th style="width:80px">更新时间</th>
+    <th style="min-width:120px">责任处室</th>
+    <th style="width:60px">责任人</th>
+    <th style="min-width:160px">所属系统（唯一源头）</th>
+    <th style="min-width:140px">统计口径</th>
+    <th style="width:50px">存储</th>
+  </tr></thead><tbody>`;
+
+  d.list.forEach((item, i) => {
+    const typeCls = item.item_type === 'resource' ? 'tag-blue' : 'tag-green';
+    const typeLabel = item.item_type === 'resource' ? '📁资源' : '📊指标';
+    html += `<tr>
+      <td style="color:var(--txt-3)">${i + 1}</td>
+      <td><span class="tag ${typeCls}" style="font-size:10px">${typeLabel}</span></td>
+      <td><code style="font-size:11px">${item.code}</code></td>
+      <td style="font-weight:500" title="${item.description}">${item.name}</td>
+      <td style="font-weight:600;color:var(--cyan)">${item.data_value}</td>
+      <td>${item.update_freq}</td>
+      <td style="font-size:12px;color:var(--txt-3)">${item.last_update}</td>
+      <td><span class="dept-chip">${item.owner_dept}</span></td>
+      <td>${item.owner_person}</td>
+      <td style="font-size:12px" title="${item.source_system}">${item.source_system}</td>
+      <td style="font-size:11px;color:var(--txt-3)" title="${item.calc_expr}">${(item.calc_expr || '').slice(0, 40)}</td>
+      <td><span class="tag tag-gray" style="font-size:10px">${item.retention_years}年</span></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  html += `<div style="margin-top:12px;padding:10px 14px;background:rgba(0,212,255,.06);border-radius:8px;font-size:12px;color:var(--txt-3)">
+    📌 共 <strong style="color:var(--cyan)">${d.total}</strong> 项数据 | 每项数据有且仅有一个权威来源系统 | 数据存储年限 <strong>3年</strong>
+  </div>`;
+
+  body.innerHTML = html;
+}
+
+let catalogTimer = null;
+function catalogDebounced() {
+  if (catalogTimer) clearTimeout(catalogTimer);
+  catalogTimer = setTimeout(() => renderDataCatalog(), 400);
+}
+
+async function exportDataCatalog() {
+  showToast('正在生成数据清单...', 'info');
+  try {
+    const res = await fetch('/api/data-catalog/export', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (!res.ok) throw new Error('导出失败');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `建交数据清单_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('数据清单导出成功 ✓', 'success');
+  } catch (e) {
+    showToast('导出失败：' + e.message, 'warn');
+  }
+}
 
 /* -- 概览 -- */
 async function renderDataOverview() {
