@@ -37,6 +37,23 @@ for (const [k, v] of Object.entries(SVG_ICONS)) {
   MENU_ICON[k] = v;
 }
 
+/* ---------- 快捷入口 SVG 图标映射 ---------- */
+const QUICK_ICONS = {
+  '全局总览': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  '态势大屏': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  '规建管一体化': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
+  '业务专题': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  '用户管理': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  '角色管理': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>',
+  '部门管理': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  '网关监控': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  '本处室专题': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+  '审批中心': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  '消息中心': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  '我的待办': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  '备案中心': '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+};
+
 /* ---------- API 封装（自动携带Token + 失效刷新） ---------- */
 async function tryRefresh() {
   const rt = localStorage.getItem('refresh_token');
@@ -202,6 +219,8 @@ async function renderWorkbench() {
   try { const r = await api('/api/projects/stats'); if (r && r.code === 200) projStats = r.data; } catch (e) {}
 
   const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 6 ? '凌晨好' : hour < 9 ? '早上好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
   const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const weekdayCn = ['日','一','二','三','四','五','六'][now.getDay()];
   const seasonCn = ['严冬','晚冬','早春','仲春','暮春','初夏','盛夏','暮夏','初秋','金秋','深秋','初冬'][now.getMonth()];
@@ -214,7 +233,7 @@ async function renderWorkbench() {
 
   let html = `
     <div class="welcome">
-      <h2>下午好，<span>${name}</span></h2>
+      <h2>${greeting}，<span>${name}</span></h2>
       <p>${dept} · ${role}　|　欢迎使用协同调度中心统一工作门户</p>
     </div>
     <div class="stat-row">
@@ -308,11 +327,11 @@ async function renderWorkbench() {
       </div>
     </div>
     <div class="panel">
-      <div class="panel-head"><div class="t">🚀 快捷入口</div></div>
+      <div class="panel-head"><div class="t">快捷入口</div></div>
       <div class="quick-grid">
         ${d.quick_entries.map(q => `
           <div class="quick-card" onclick="navTo('${q.route}')">
-            <span class="qc-ico">${q.icon}</span><span class="qc-name">${q.name}</span>
+            <span class="qc-ico">${QUICK_ICONS[q.name] || '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'}</span><span class="qc-name">${q.name}</span>
           </div>`).join('')}
       </div>
     </div>`;
@@ -1917,11 +1936,12 @@ async function renderOverview() {
     <!-- 顶栏 -->
     <div class="ov-topbar">
       <div class="ov-title-row">
-        <span class="ov-logo">🏛️</span>
+        <span class="ov-logo"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
         <span class="ov-sys-name">雄安新区建设和交通管理局 · 协同调度中心</span>
+        <span class="ov-xa-tag">千年大计 · 国家大事</span>
         <span class="ov-label">态势大屏</span>
         <span class="ov-clock" id="ovClock">--</span>
-        <span class="ov-live">● 实时</span>
+        <span class="ov-live"><span class="ov-live-dot"></span>实时</span>
       </div>
       <div class="ov-core-strip">
         ${coreItems.map(c => `<div class="ov-core-item"><span class="ov-core-label">${c.label}</span><span class="ov-core-val" style="color:${c.color}">${c.value}<small>${c.unit}</small></span></div>`).join('')}
@@ -1934,6 +1954,39 @@ async function renderOverview() {
       <div class="ov-center">
         <div class="ov-map-container">
           <canvas id="ovMapCanvas"></canvas>
+          <!-- 白洋淀水域轮廓 -->
+          <svg class="ov-lake" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="lakeGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.15"/>
+                <stop offset="70%" stop-color="#14b8a6" stop-opacity="0.08"/>
+                <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+              </radialGradient>
+              <filter id="lakeGlow">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <!-- 白洋淀主体水域（不规则椭圆） -->
+            <ellipse cx="200" cy="150" rx="160" ry="110" fill="url(#lakeGrad)" filter="url(#lakeGlow)"/>
+            <!-- 水域边缘光晕 -->
+            <ellipse cx="200" cy="150" rx="155" ry="105" fill="none" stroke="#06b6d4" stroke-width="0.5" stroke-opacity="0.3" stroke-dasharray="4 6"/>
+            <!-- 内部小岛 -->
+            <ellipse cx="160" cy="130" rx="20" ry="14" fill="#0a1530" fill-opacity="0.6"/>
+            <ellipse cx="240" cy="170" rx="16" ry="10" fill="#0a1530" fill-opacity="0.6"/>
+            <ellipse cx="200" cy="110" rx="12" ry="8" fill="#0a1530" fill-opacity="0.6"/>
+            <!-- 水波纹 -->
+            <ellipse cx="200" cy="150" rx="100" ry="60" fill="none" stroke="#22d3ee" stroke-width="0.3" stroke-opacity="0.2">
+              <animate attributeName="rx" values="100;120;100" dur="6s" repeatCount="indefinite"/>
+              <animate attributeName="ry" values="60;72;60" dur="6s" repeatCount="indefinite"/>
+            </ellipse>
+            <ellipse cx="200" cy="150" rx="70" ry="40" fill="none" stroke="#22d3ee" stroke-width="0.3" stroke-opacity="0.15">
+              <animate attributeName="rx" values="70;90;70" dur="6s" begin="2s" repeatCount="indefinite"/>
+              <animate attributeName="ry" values="40;52;40" dur="6s" begin="2s" repeatCount="indefinite"/>
+            </ellipse>
+            <!-- 标签 -->
+            <text x="200" y="155" text-anchor="middle" fill="#22d3ee" fill-opacity="0.5" font-size="10" font-weight="500" letter-spacing="2">白洋淀</text>
+          </svg>
           <div class="ov-map-legend">
             <span><i style="background:#00d4ff"></i>项目</span>
             <span><i style="background:#ffb300"></i>公交站</span>
@@ -1942,7 +1995,7 @@ async function renderOverview() {
         </div>
         <!-- 事件时间线 -->
         <div class="ov-timeline">
-          <div class="ov-tl-head">📰 实时事件</div>
+          <div class="ov-tl-head"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>实时事件</div>
           <div class="ov-tl-list" id="ovTimeline">
             ${d.timeline.map(t => `
               <div class="ov-tl-item ${t.tag ? 'urgent' : ''}">
@@ -1959,7 +2012,7 @@ async function renderOverview() {
 
     <!-- 底部预警滚动条 -->
     <div class="ov-warn-bar">
-      <span class="ov-warn-label">⚠ 实时预警</span>
+      <span class="ov-warn-label"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>实时预警</span>
       <div class="ov-warn-scroll" id="ovWarnScroll">
         <div class="ov-warn-track">
           ${d.warnings.length ? d.warnings.map(w => `

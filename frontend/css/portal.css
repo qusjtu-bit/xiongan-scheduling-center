@@ -898,6 +898,47 @@ body {
 .ov-warn-item.lvl-3 { color: var(--danger); font-weight: 600; }
 @keyframes ov-warn-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
+.ov-warn-label { color: var(--danger); font-weight: 600; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+.ov-warn-scroll { flex: 1; overflow: hidden; position: relative; }
+.ov-warn-track { display: flex; gap: 28px; white-space: nowrap; animation: ov-warn-scroll 30s linear infinite; }
+.ov-warn-item { font-size: 12px; color: #ffaaaa; }
+.ov-warn-item small { color: var(--text-3); margin-left: 8px; font-size: 11px; }
+.ov-warn-item.lvl-3 { color: var(--danger); font-weight: 600; }
+@keyframes ov-warn-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* 全局总览雄安元素 */
+.ov-xa-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 14px; border-radius: 14px; font-size: 11px;
+  background: rgba(6,182,212,.12); border: 1px solid rgba(6,182,212,.3);
+  color: var(--xa-aqua); letter-spacing: 1px; font-weight: 500;
+}
+.ov-xa-tag::before {
+  content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--xa-aqua); box-shadow: 0 0 6px var(--xa-aqua);
+}
+.ov-logo svg { color: var(--xa-cyan); }
+.ov-label {
+  background: var(--xa-bg); background-size: 200% 200%;
+  padding: 3px 14px; border-radius: 14px; font-size: 12px; color: #fff; font-weight: 600;
+}
+.ov-live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--success); }
+.ov-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+  box-shadow: 0 0 6px var(--success); animation: ov-pulse 2s infinite;
+}
+.ov-lake {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+}
+.ov-core-item {
+  position: relative; overflow: hidden;
+}
+.ov-core-item::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--xa-cyan), transparent);
+  opacity: .4;
+}
+
 /* ========================= 15. 规建管一体化 ========================= */
 .proj-search {
   padding: 8px 14px; background: rgba(7,13,36,.6); border: 1px solid var(--border-light);
