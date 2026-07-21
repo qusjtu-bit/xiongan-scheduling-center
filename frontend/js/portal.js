@@ -186,6 +186,7 @@ function navTo(route) {
 
 async function renderContent(route) {
   if (overviewRefreshTimer) { clearInterval(overviewRefreshTimer); overviewRefreshTimer = null; }
+  if (window._ovMap) { try { window._ovMap.remove(); } catch(e){} window._ovMap = null; }
   stopAutoRefresh();
   showLoading(true);
   try {
@@ -1953,40 +1954,10 @@ async function renderOverview() {
       <div class="ov-left">${leftPanels}</div>
       <div class="ov-center">
         <div class="ov-map-container">
-          <canvas id="ovMapCanvas"></canvas>
-          <!-- 白洋淀水域轮廓 -->
-          <svg class="ov-lake" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <radialGradient id="lakeGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.15"/>
-                <stop offset="70%" stop-color="#14b8a6" stop-opacity="0.08"/>
-                <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
-              </radialGradient>
-              <filter id="lakeGlow">
-                <feGaussianBlur stdDeviation="3" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            <!-- 白洋淀主体水域（不规则椭圆） -->
-            <ellipse cx="200" cy="150" rx="160" ry="110" fill="url(#lakeGrad)" filter="url(#lakeGlow)"/>
-            <!-- 水域边缘光晕 -->
-            <ellipse cx="200" cy="150" rx="155" ry="105" fill="none" stroke="#06b6d4" stroke-width="0.5" stroke-opacity="0.3" stroke-dasharray="4 6"/>
-            <!-- 内部小岛 -->
-            <ellipse cx="160" cy="130" rx="20" ry="14" fill="#0a1530" fill-opacity="0.6"/>
-            <ellipse cx="240" cy="170" rx="16" ry="10" fill="#0a1530" fill-opacity="0.6"/>
-            <ellipse cx="200" cy="110" rx="12" ry="8" fill="#0a1530" fill-opacity="0.6"/>
-            <!-- 水波纹 -->
-            <ellipse cx="200" cy="150" rx="100" ry="60" fill="none" stroke="#22d3ee" stroke-width="0.3" stroke-opacity="0.2">
-              <animate attributeName="rx" values="100;120;100" dur="6s" repeatCount="indefinite"/>
-              <animate attributeName="ry" values="60;72;60" dur="6s" repeatCount="indefinite"/>
-            </ellipse>
-            <ellipse cx="200" cy="150" rx="70" ry="40" fill="none" stroke="#22d3ee" stroke-width="0.3" stroke-opacity="0.15">
-              <animate attributeName="rx" values="70;90;70" dur="6s" begin="2s" repeatCount="indefinite"/>
-              <animate attributeName="ry" values="40;52;40" dur="6s" begin="2s" repeatCount="indefinite"/>
-            </ellipse>
-            <!-- 标签 -->
-            <text x="200" y="155" text-anchor="middle" fill="#22d3ee" fill-opacity="0.5" font-size="10" font-weight="500" letter-spacing="2">白洋淀</text>
-          </svg>
+          <div id="ovMapCanvas"></div>
+          <div class="ov-map-overlay">
+            <span class="ov-map-title">雄安新区 · 天地图</span>
+          </div>
           <div class="ov-map-legend">
             <span><i style="background:#00d4ff"></i>项目</span>
             <span><i style="background:#ffb300"></i>公交站</span>
@@ -2039,33 +2010,80 @@ async function renderOverview() {
 }
 
 function drawOverviewMap(markers) {
-  const canvas = document.getElementById('ovMapCanvas');
-  if (!canvas) return;
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+  const container = document.getElementById('ovMapCanvas');
+  if (!container || typeof L === 'undefined') return;
 
-  // 背景
-  ctx.fillStyle = '#0a1028';
-  ctx.fillRect(0, 0, W, H);
+  // 天地图 key（免费申请：https://console.tianditu.gov.cn/，填入后自动切换真实地图）
+  const TD_KEY = '';
 
-  // 网格
-  ctx.strokeStyle = 'rgba(30,58,111,.25)';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // 初始化地图，定位雄安新区
+  const map = L.map(container, {
+    center: [39.04, 116.08],
+    zoom: 12,
+    zoomControl: false,
+    attributionControl: false,
+    preferCanvas: true,
+  });
 
-  // 坐标范围 (雄安新区)
-  const lngMin = 116.025, lngMax = 116.170;
-  const latMin = 38.915, latMax = 39.075;
-  function toXY(lng, lat) {
-    return {
-      x: ((lng - lngMin) / (lngMax - lngMin)) * W,
-      y: H - ((lat - latMin) / (latMax - latMin)) * H,
-    };
+  // —— 自绘暗色底图（政务大屏风格，无需网络瓦片） ——
+  const DarkGridLayer = L.GridLayer.extend({
+    createTile: function(coords) {
+      const tile = document.createElement('canvas');
+      const sz = 256;
+      tile.width = sz; tile.height = sz;
+      const ctx = tile.getContext('2d');
+      // 深色渐变背景
+      const grad = ctx.createLinearGradient(0, 0, sz, sz);
+      grad.addColorStop(0, '#080d1f');
+      grad.addColorStop(1, '#0a1530');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, sz, sz);
+      // 细网格
+      ctx.strokeStyle = 'rgba(6,182,212,.06)';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= sz; i += 32) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sz); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(sz, i); ctx.stroke();
+      }
+      // 粗网格
+      ctx.strokeStyle = 'rgba(6,182,212,.12)';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= sz; i += 128) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sz); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(sz, i); ctx.stroke();
+      }
+      return tile;
+    }
+  });
+  const darkLayer = new DarkGridLayer();
+
+  // —— 天地图图层（有 key 时使用） ——
+  let useTd = !!TD_KEY;
+  if (useTd) {
+    const vecLayer = L.tileLayer(
+      'https://t{s}.tianditu.gov.cn/DataServer?T=vec_w&x={x}&y={y}&l={z}&tk=' + TD_KEY,
+      { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18 }
+    );
+    const cvaLayer = L.tileLayer(
+      'https://t{s}.tianditu.gov.cn/DataServer?T=cva_w&x={x}&y={y}&l={z}&tk=' + TD_KEY,
+      { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18 }
+    );
+    vecLayer.on('tileerror', () => {
+      map.removeLayer(vecLayer); map.removeLayer(cvaLayer);
+      darkLayer.addTo(map);
+      const ov = document.querySelector('.ov-map-overlay');
+      if (ov) ov.textContent = '雄安新区 · 态势底图';
+    });
+    vecLayer.addTo(map);
+    cvaLayer.addTo(map);
+  } else {
+    darkLayer.addTo(map);
+    const ov = document.querySelector('.ov-map-overlay');
+    if (ov) ov.textContent = '雄安新区 · 态势底图（填入天地图 key 后显示真实地图）';
   }
+
+  // 缩放控件
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   // 片区标注
   const areas = [
@@ -2079,57 +2097,38 @@ function drawOverviewMap(markers) {
     { name: '安新', lng: 116.032, lat: 38.998 },
     { name: '白洋淀', lng: 116.060, lat: 38.935 },
   ];
-  ctx.fillStyle = 'rgba(90,107,133,.35)';
-  ctx.font = '10px "PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.textAlign = 'center';
   for (const a of areas) {
-    const p = toXY(a.lng, a.lat);
-    ctx.fillText(a.name, p.x, p.y);
-    ctx.fillStyle = 'rgba(255,255,255,.08)';
-    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(90,107,133,.35)';
+    L.marker([a.lat, a.lng], {
+      icon: L.divIcon({ className: 'ov-area-label', html: `<span>${a.name}</span>`, iconSize: [60, 20], iconAnchor: [30, 10] })
+    }).addTo(map);
   }
 
-  // 白洋淀水域示意
-  const bd = toXY(116.060, 38.935);
-  ctx.fillStyle = 'rgba(0,180,220,.12)';
-  ctx.beginPath();
-  ctx.ellipse(bd.x, bd.y, W * 0.22, H * 0.12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(0,200,240,.25)';
-  ctx.font = '12px "PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText('白洋淀', bd.x, bd.y);
+  // 白洋淀水域
+  L.circle([38.935, 116.060], {
+    radius: 5000, color: '#06b6d4', weight: 1, opacity: 0.5,
+    fillColor: '#06b6d4', fillOpacity: 0.1,
+  }).addTo(map);
 
-  // 标记点
+  // 项目标记点（脉冲发光）
+  const typeIcon = {
+    project: { color: '#00d4ff', r: 8 },
+    station: { color: '#ffb300', r: 6 },
+    facility: { color: '#69f0ae', r: 5 },
+  };
   for (const m of markers) {
-    const p = toXY(m.lng, m.lat);
-    if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) continue;
-    // 发光点
-    ctx.fillStyle = m.color;
-    ctx.shadowColor = m.color;
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    const r = m.type === 'project' ? 5 : m.type === 'station' ? 4 : 3;
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // 脉冲圈
-    ctx.strokeStyle = m.color;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = 1;
+    const cfg = typeIcon[m.type] || typeIcon.project;
+    const icon = L.divIcon({
+      className: 'ov-marker',
+      html: `<div class="ov-marker-pulse" style="--mc:${cfg.color}"></div>
+             <div class="ov-marker-dot" style="background:${cfg.color};box-shadow:0 0 10px ${cfg.color}"></div>`,
+      iconSize: [cfg.r * 2, cfg.r * 2],
+      iconAnchor: [cfg.r, cfg.r],
+    });
+    L.marker([m.lat, m.lng], { icon }).addTo(map);
   }
 
-  // 主要道路示意
-  ctx.strokeStyle = 'rgba(255,255,255,.1)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([8, 12]);
-  // R1线大致路径
-  ctx.beginPath();
-  let p1 = toXY(116.108, 39.038), p2 = toXY(116.160, 39.055);
-  ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  // 地图失效时清理
+  window._ovMap = map;
 }
 
 function initWarnScroll() {
