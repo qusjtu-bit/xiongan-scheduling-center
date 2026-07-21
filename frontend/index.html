@@ -11,35 +11,153 @@
 <!-- ============ 登录页 ============ -->
 <div id="loginView" class="login-view">
   <div class="login-bg"></div>
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="logo-mark">雄</div>
-      <div class="logo-text">
-        <div class="logo-title">雄安新区建设和交通管理局</div>
-        <div class="logo-sub">协同调度中心 · 统一工作门户</div>
+
+  <!-- 左侧：雄安品牌区 -->
+  <div class="login-brand-side">
+    <div class="xa-water"></div>
+    <svg class="xa-skyline" viewBox="0 0 800 200" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="xaSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#0a1a3d" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="xaGlow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#22d3ee" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- 远景楼群 -->
+      <g fill="url(#xaSky)">
+        <rect x="0"   y="120" width="38"  height="80"/>
+        <rect x="42"  y="105" width="28"  height="95"/>
+        <rect x="74"  y="130" width="34"  height="70"/>
+        <rect x="112" y="95"  width="22"  height="105"/>
+        <rect x="138" y="115" width="30"  height="85"/>
+        <rect x="172" y="125" width="26"  height="75"/>
+      </g>
+      <!-- 中景：雄安站（曲面屋顶） -->
+      <g fill="url(#xaSky)">
+        <path d="M205,200 L205,135 Q260,95 315,135 L315,200 Z"/>
+        <rect x="215" y="155" width="90" height="6" fill="url(#xaGlow)" opacity=".6"/>
+        <rect x="225" y="170" width="14" height="20"/>
+        <rect x="246" y="170" width="14" height="20"/>
+        <rect x="267" y="170" width="14" height="20"/>
+        <rect x="288" y="170" width="14" height="20"/>
+      </g>
+      <!-- 中景：市民服务中心（水平延展） -->
+      <g fill="url(#xaSky)">
+        <rect x="330" y="140" width="140" height="60"/>
+        <rect x="345" y="120" width="110" height="22"/>
+        <g fill="#22d3ee" opacity=".4">
+          <rect x="345" y="150" width="6" height="40"/>
+          <rect x="360" y="150" width="6" height="40"/>
+          <rect x="375" y="150" width="6" height="40"/>
+          <rect x="390" y="150" width="6" height="40"/>
+          <rect x="405" y="150" width="6" height="40"/>
+          <rect x="420" y="150" width="6" height="40"/>
+          <rect x="435" y="150" width="6" height="40"/>
+          <rect x="450" y="150" width="6" height="40"/>
+        </g>
+      </g>
+      <!-- 中景：商务中心双塔 -->
+      <g fill="url(#xaSky)">
+        <rect x="485" y="60"  width="32" height="140"/>
+        <rect x="525" y="72"  width="30" height="128"/>
+        <rect x="563" y="80"  width="26" height="120"/>
+        <g fill="url(#xaGlow)" opacity=".55">
+          <rect x="490" y="65" width="22" height="3"/>
+          <rect x="530" y="77" width="20" height="3"/>
+          <rect x="568" y="85" width="16" height="3"/>
+        </g>
+      </g>
+      <!-- 近景：启动区塔楼群 -->
+      <g fill="url(#xaSky)">
+        <rect x="600" y="105" width="22"  height="95"/>
+        <rect x="626" y="85"  width="28"  height="115"/>
+        <rect x="658" y="115" width="24"  height="85"/>
+        <rect x="686" y="95"  width="20"  height="105"/>
+        <rect x="710" y="125" width="30"  height="75"/>
+        <rect x="744" y="100" width="26"  height="100"/>
+        <rect x="774" y="130" width="26"  height="70"/>
+      </g>
+      <!-- 顶部连接线（能量流） -->
+      <g stroke="#22d3ee" stroke-width=".6" opacity=".35" fill="none">
+        <line x1="0" y1="120" x2="800" y2="120"/>
+        <line x1="0" y1="100" x2="800" y2="100"/>
+      </g>
+      <!-- 数据节点 -->
+      <g fill="#22d3ee" opacity=".75">
+        <circle cx="260" cy="98"  r="1.6"/>
+        <circle cx="400" cy="120" r="1.6"/>
+        <circle cx="540" cy="65"  r="1.6"/>
+        <circle cx="640" cy="78"  r="1.6"/>
+      </g>
+    </svg>
+
+    <div class="xa-brand-head">
+      <div class="xa-emblem">雄</div>
+      <div>
+        <div class="xa-brand-name">雄安新区</div>
+        <div class="xa-brand-sub">XIONG&#39;AN NEW AREA</div>
       </div>
     </div>
-    <div class="login-form">
-      <label>账号</label>
-      <input type="text" id="username" value="admin" placeholder="请输入账号">
-      <label>密码</label>
-      <input type="password" id="password" value="admin123" placeholder="请输入密码">
-      <button class="btn-login" onclick="doLogin()">登 录</button>
+
+    <div class="xa-hero">
+      <span class="xa-tagline-top">千年大计 · 国家大事</span>
+      <h1 class="xa-title">
+        <span class="accent">雄安新区</span><br/>
+        建设和交通管理局
+      </h1>
+      <p class="xa-subtitle">
+        聚焦建设、交通、城管、应急四大板块，构建"一屏统揽、一键调度、一网协同"的现代化治理新范式，擘画"妙不可言 · 心向往之"的未来之城。
+      </p>
     </div>
-    <div class="login-accounts">
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">快捷登录 · 点击账号自动填充</div>
-      <div class="account-chips">
-        <code onclick="fillAccount('admin','admin123')">admin（管理员）</code>
-        <code onclick="fillAccount('zhangju','zhangju123')">zhangju（建设）</code>
-        <code onclick="fillAccount('lichu','lichu123')">lichu（质量）</code>
-        <code onclick="fillAccount('jiangchu','jiangchu123')">jiangchu（城管）</code>
-        <code onclick="fillAccount('zhouchu','zhouchu123')">zhouchu（城乡）</code>
-        <code onclick="fillAccount('chuzhang','chuzhang123')">chuzhang（交通）</code>
-      </div>
-      <div class="account-tip">登录后可在「系统管理-用户管理」查看全部账号 · 共18个账号覆盖12个处室</div>
+
+    <div class="xa-concepts">
+      <span class="xa-concept"><i class="xa-concept-dot"></i>绿色生态</span>
+      <span class="xa-concept"><i class="xa-concept-dot"></i>智慧城市</span>
+      <span class="xa-concept"><i class="xa-concept-dot"></i>数字孪生</span>
+      <span class="xa-concept"><i class="xa-concept-dot"></i>蓝绿交织</span>
     </div>
   </div>
-  <div class="login-footer">Step 2 · 统一工作门户 &nbsp;|&nbsp; 雄安新区建设和交通管理局</div>
+
+  <!-- 右侧：登录表单 -->
+  <div class="login-form-side">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-mark">雄</div>
+        <div class="logo-text">
+          <div class="logo-title">雄安新区建设和交通管理局</div>
+          <div class="logo-sub">协同调度中心 · 统一工作门户</div>
+        </div>
+      </div>
+      <div class="login-form">
+        <label>账号</label>
+        <input type="text" id="username" value="admin" placeholder="请输入账号">
+        <label>密码</label>
+        <input type="password" id="password" value="admin123" placeholder="请输入密码">
+        <button class="btn-login" onclick="doLogin()">登 录</button>
+      </div>
+      <div class="login-accounts">
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">快捷登录 · 点击账号自动填充</div>
+        <div class="account-chips">
+          <code onclick="fillAccount('admin','admin123')">admin（管理员）</code>
+          <code onclick="fillAccount('zhangju','zhangju123')">zhangju（建设）</code>
+          <code onclick="fillAccount('lichu','lichu123')">lichu（质量）</code>
+          <code onclick="fillAccount('jiangchu','jiangchu123')">jiangchu（城管）</code>
+          <code onclick="fillAccount('zhouchu','zhouchu123')">zhouchu（城乡）</code>
+          <code onclick="fillAccount('chuzhang','chuzhang123')">chuzhang（交通）</code>
+        </div>
+        <div class="account-tip">登录后可在「系统管理-用户管理」查看全部账号 · 共18个账号覆盖12个处室</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-footer">
+    <span class="xa-seal">雄安</span>
+    Step 2 · 统一工作门户 &nbsp;|&nbsp; 雄安新区建设和交通管理局
+    <span class="xa-seal">协同</span>
+  </div>
 </div>
 
 <!-- ============ 门户主框架 ============ -->
@@ -48,6 +166,8 @@
     <div class="brand" onclick="navTo('/workbench')">
       <span class="brand-mark">雄</span>
       <span class="brand-name">协同调度中心</span>
+      <span class="brand-divider"></span>
+      <span class="brand-tag">雄安新区</span>
     </div>
     <div class="global-search">
       <span class="search-ico"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>

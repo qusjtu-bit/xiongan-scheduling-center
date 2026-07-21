@@ -197,6 +197,21 @@ async function renderWorkbench() {
   const dept = currentUser.dept_name;
   const role = currentUser.roles.map(r => r.name).join('/');
 
+  // 拉取项目态势（用于"雄安数说"面板）
+  let projStats = null;
+  try { const r = await api('/api/projects/stats'); if (r && r.code === 200) projStats = r.data; } catch (e) {}
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const weekdayCn = ['日','一','二','三','四','五','六'][now.getDay()];
+  const seasonCn = ['严冬','晚冬','早春','仲春','暮春','初夏','盛夏','暮夏','初秋','金秋','深秋','初冬'][now.getMonth()];
+
+  const total = projStats ? projStats.total : 0;
+  const inProgress = projStats && projStats.stage_count ? (projStats.stage_count['建设'] || 0) : 0;
+  const overdue = projStats && projStats.risk_summary ? projStats.risk_summary.overdue : 0;
+  // invest 字段单位是万元，转换为亿元
+  const totalInvestYi = projStats ? (projStats.total_invest / 10000).toFixed(1) : '0.0';
+
   let html = `
     <div class="welcome">
       <h2>下午好，<span>${name}</span></h2>
@@ -227,6 +242,69 @@ async function renderWorkbench() {
               <div class="li-sub">${w.sender} · ${w.created_at}</div></div>
             <span class="tag tag-red">${w.level_name}</span>
           </div>`).join('') : '<div class="empty">暂无预警 🎉</div>'}
+      </div>
+      <div class="panel xa-pulse">
+        <div class="xa-pulse-head">
+          <div class="xa-pulse-title"><span class="pulse-dot"></span>雄安数说</div>
+          <div class="xa-pulse-date">${dateStr} · 周${weekdayCn} · ${seasonCn}</div>
+        </div>
+        <div class="xa-pulse-body">
+          <div class="xa-pulse-grid">
+            <div class="xa-pulse-cell">
+              <div class="pl">在建项目</div>
+              <div><span class="pv">${inProgress}</span><span class="pu">个</span></div>
+            </div>
+            <div class="xa-pulse-cell">
+              <div class="pl">累计立项</div>
+              <div><span class="pv">${total}</span><span class="pu">个</span></div>
+            </div>
+            <div class="xa-pulse-cell">
+              <div class="pl">投资总额</div>
+              <div><span class="pv">${totalInvestYi}</span><span class="pu">亿元</span></div>
+            </div>
+            <div class="xa-pulse-cell">
+              <div class="pl">逾期预警</div>
+              <div><span class="pv">${overdue}</span><span class="pu">项</span></div>
+            </div>
+          </div>
+          <div class="xa-pulse-extra">
+            <div class="ex-row"><span>今日待办</span><span class="ex-tag">${d.todo_count} 项</span></div>
+            <div class="ex-row"><span>未读消息</span><span class="ex-tag">${d.unread_count} 条</span></div>
+            <div class="ex-row"><span>当前季节</span><span class="ex-tag">${seasonCn} · 蓝绿交织</span></div>
+          </div>
+        </div>
+        <svg class="xa-pulse-skyline" viewBox="0 0 800 50" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#06b6d4" opacity=".7">
+            <rect x="0"   y="22" width="34" height="28"/>
+            <rect x="38"  y="14" width="22" height="36"/>
+            <rect x="64"  y="28" width="28" height="22"/>
+            <rect x="96"  y="10" width="18" height="40"/>
+            <rect x="118" y="20" width="26" height="30"/>
+            <rect x="148" y="6"  width="22" height="44"/>
+            <rect x="174" y="18" width="20" height="32"/>
+            <rect x="198" y="26" width="30" height="24"/>
+            <rect x="232" y="14" width="24" height="36"/>
+            <rect x="260" y="22" width="20" height="28"/>
+            <rect x="284" y="8"  width="22" height="42"/>
+            <rect x="310" y="20" width="28" height="30"/>
+            <rect x="342" y="14" width="20" height="36"/>
+            <rect x="366" y="26" width="26" height="24"/>
+            <rect x="396" y="18" width="22" height="32"/>
+            <rect x="422" y="6"  width="18" height="44"/>
+            <rect x="444" y="22" width="28" height="28"/>
+            <rect x="476" y="12" width="22" height="38"/>
+            <rect x="502" y="20" width="20" height="30"/>
+            <rect x="526" y="28" width="30" height="22"/>
+            <rect x="560" y="16" width="24" height="34"/>
+            <rect x="588" y="8"  width="20" height="42"/>
+            <rect x="612" y="22" width="26" height="28"/>
+            <rect x="642" y="14" width="22" height="36"/>
+            <rect x="668" y="26" width="30" height="24"/>
+            <rect x="702" y="18" width="20" height="32"/>
+            <rect x="726" y="10" width="24" height="40"/>
+            <rect x="754" y="22" width="46" height="28"/>
+          </g>
+        </svg>
       </div>
     </div>
     <div class="panel">
