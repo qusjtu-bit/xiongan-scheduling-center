@@ -17,10 +17,25 @@ const MENU_ROUTE = {
   'system:user': '/system/users', 'system:dept': '/system/depts',
   'system:role': '/system/roles', 'system:perm': '/system/perms',
 };
-const MENU_ICON = {
-  dashboard: '🏠', overview: '🛰️', project: '🏗️', topic: '🗺️', ai: '🤖', data: '📊', system: '⚙️',
-  'system:user': '👤', 'system:dept': '🏢', 'system:role': '🔑', 'system:perm': '🛡️',
+/* ---------- SVG 图标集（替换 emoji，更专业） ---------- */
+const SVG_ICONS = {
+  dashboard: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  overview: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  project: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  topic: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  ai: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10h-10V2z"/><path d="M12 12 2 12a10 10 0 0 0 10 10V12z"/><path d="M12 2a10 10 0 0 1 10 10h-10V2z"/></svg>',
+  data: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+  system: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  'system:user': '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  'system:dept': '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  'system:role': '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>',
+  'system:perm': '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
 };
+
+const MENU_ICON = {};
+for (const [k, v] of Object.entries(SVG_ICONS)) {
+  MENU_ICON[k] = v;
+}
 
 /* ---------- API 封装（自动携带Token + 失效刷新） ---------- */
 async function tryRefresh() {
@@ -92,9 +107,21 @@ async function enterPortal() {
   document.getElementById('uDept').textContent = (currentUser.dept_name || '') + ' · ' + currentUser.roles.map(r => r.name).join('/');
   document.getElementById('uAvatar').textContent = currentUser.real_name.charAt(0);
 
+  // 系统时钟
+  updateClock();
+  setInterval(updateClock, 1000);
+
   await loadMenus();
   await updateMsgBadge();
   navTo('/workbench');
+}
+
+function updateClock() {
+  const el = document.getElementById('sysClock');
+  if (!el) return;
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  el.textContent = now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
 }
 
 /* ---------- 侧边栏菜单 ---------- */
@@ -183,7 +210,7 @@ async function renderWorkbench() {
     </div>
     <div class="work-grid">
       <div class="panel">
-        <div class="panel-head"><div class="t">📋 我的待办 TOP</div><div class="more" onclick="navTo('/todos')">全部 →</div></div>
+        <div class="panel-head"><div class="t">我的待办 TOP</div><div class="more" onclick="navTo('/todos')">全部 →</div></div>
         ${d.todo_top.length ? d.todo_top.map(t => `
           <div class="list-item" onclick="navTo('${t.link || '/todos'}')" style="cursor:pointer">
             <span class="dot ${t.urgency >= 3 ? 'dot-red' : t.urgency >= 2 ? 'dot-orange' : 'dot-blue'}"></span>
@@ -342,13 +369,13 @@ async function renderSystem(route) {
 
 /* ---------- 建交数据中枢 ---------- */
 async function renderDataCenter() {
-  const tabs = [['overview', '📈 概览'], ['catalog', '📋 数据清单'], ['resources', '📁 数据资源目录'], ['indicators', '📊 指标看板'], ['governance', '🔗 数据治理']];
+  const tabs = [['overview', '概览'], ['catalog', '数据清单'], ['resources', '数据资源目录'], ['indicators', '指标看板'], ['governance', '数据治理']];
   let html = `
     <div class="page-head"><div class="page-title">建交数据中枢<small>一数一源头 · 统一数据资源管理与指标监控</small></div>
       <div style="display:flex;gap:8px">
-        <button class="btn-ghost" onclick="exportDataCatalog()">📥 导出数据清单</button>
-      </div></div>
-    <div class="tabs">${tabs.map(([k, name]) => `<div class="subtab ${k === dataTab ? 'active' : ''}" onclick="switchDataTab('${k}')">${name}</div>`).join('')}</div>
+        <button class="btn-ghost" onclick="exportDataCatalog()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>导出数据清单</button>
+      </div></div></div>
+    <div class="tabs">${tabs.map(([k, name]) => `<div class="tab ${k === dataTab ? 'active' : ''}" onclick="switchDataTab('${k}')">${name}</div>`).join('')}</div>
     <div id="dcBody"></div>`;
   document.getElementById('content').innerHTML = html;
 
@@ -378,7 +405,7 @@ async function renderDataCatalog() {
   const d = res.data;
 
   const domNames = { 1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理', 5: '综合' };
-  const typeLabels = { resource: '📁 数据资源', indicator: '📊 指标数据' };
+  const typeLabels = { resource: '数据资源', indicator: '指标数据' };
 
   let html = '';
 
@@ -391,8 +418,8 @@ async function renderDataCatalog() {
 
   // 筛选工具栏
   html += `<div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <input class="proj-search" placeholder="🔍 搜索数据名称或描述..." value="${catalogFilter.keyword}" onkeyup="catalogFilter.keyword=this.value;catalogDebounced()" style="min-width:220px">
-    ${[[0,'全部'],[1,'🏗️城乡建设'],[2,'🚌交通运输'],[3,'💧水利水务'],[4,'🏙️城市管理'],[5,'📋综合']].map(([v, l]) =>
+    <input class="proj-search" placeholder="搜索数据名称或描述..." value="${catalogFilter.keyword}" onkeyup="catalogFilter.keyword=this.value;catalogDebounced()" style="min-width:220px">
+    ${[[0,'全部'],[1,'城乡建设'],[2,'交通运输'],[3,'水利水务'],[4,'城市管理'],[5,'综合']].map(([v, l]) =>
       `<div class="tab ${catalogFilter.domain === v ? 'active' : ''}" onclick="catalogFilter.domain=${v};renderDataCatalog()">${l}</div>`
     ).join('')}
   </div>`;
@@ -415,14 +442,14 @@ async function renderDataCatalog() {
 
   d.list.forEach((item, i) => {
     const typeCls = item.item_type === 'resource' ? 'tag-blue' : 'tag-green';
-    const typeLabel = item.item_type === 'resource' ? '📁资源' : '📊指标';
+    const typeLabel = item.item_type === 'resource' ? '资源' : '指标';
     html += `<tr>
       <td style="color:var(--txt-3)">${i + 1}</td>
       <td><span class="tag ${typeCls}" style="font-size:10px">${typeLabel}</span></td>
       <td><code style="font-size:11px">${item.code}</code></td>
       <td style="font-weight:500" title="${item.description}">${item.name}</td>
-      <td style="font-weight:600;color:var(--cyan)">${item.data_value}</td>
-      <td>${item.update_freq}</td>
+      <td style="font-weight:600;color:var(--primary)">${item.data_value}</td>
+      <td><span class="tag tag-gray" style="font-size:10px">${item.update_freq}</span></td>
       <td style="font-size:12px;color:var(--txt-3)">${item.last_update}</td>
       <td><span class="dept-chip">${item.owner_dept}</span></td>
       <td>${item.owner_person}</td>
@@ -433,8 +460,8 @@ async function renderDataCatalog() {
   });
 
   html += `</tbody></table></div>`;
-  html += `<div style="margin-top:12px;padding:10px 14px;background:rgba(0,212,255,.06);border-radius:8px;font-size:12px;color:var(--txt-3)">
-    📌 共 <strong style="color:var(--cyan)">${d.total}</strong> 项数据 | 每项数据有且仅有一个权威来源系统 | 数据存储年限 <strong>3年</strong>
+  html += `<div style="margin-top:12px;padding:10px 14px;background:var(--primary-bg);border-radius:8px;font-size:12px;color:var(--text-3)">
+    📌 共 <strong style="color:var(--primary)">${d.total}</strong> 项数据 | 每项数据有且仅有一个权威来源系统 | 数据存储年限 <strong>3年</strong>
   </div>`;
 
   body.innerHTML = html;
@@ -1290,9 +1317,9 @@ async function renderProject() {
 
   // 子页签
   html += `<div class="tabs" style="margin-bottom:14px">
-    <div class="subtab ${projSubTab==='projects'?'active':''}" onclick="projSubTab='projects';selectedApprovals.clear();renderProject()">📋 项目管理</div>
-    <div class="subtab ${projSubTab==='pending'?'active':''}" onclick="projSubTab='pending';selectedApprovals.clear();renderProject()">📝 待我审批</div>
-    <div class="subtab ${projSubTab==='efficiency'?'active':''}" onclick="projSubTab='efficiency';renderProject()">📊 审批时效</div>
+    <div class="tab ${projSubTab==='projects'?'active':''}" onclick="projSubTab='projects';selectedApprovals.clear();renderProject()">项目管理</div>
+    <div class="tab ${projSubTab==='pending'?'active':''}" onclick="projSubTab='pending';selectedApprovals.clear();renderProject()">待我审批</div>
+    <div class="tab ${projSubTab==='efficiency'?'active':''}" onclick="projSubTab='efficiency';renderProject()">审批时效</div>
   </div>`;
 
   document.getElementById('content').innerHTML = html + '<div id="projBody"></div>';

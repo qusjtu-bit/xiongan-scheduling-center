@@ -27,16 +27,16 @@
       <button class="btn-login" onclick="doLogin()">登 录</button>
     </div>
     <div class="login-accounts">
-      快捷登录（点击自动填充，共18个账号覆盖12个处室）：
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">快捷登录 · 点击账号自动填充</div>
       <div class="account-chips">
-        <code onclick="fillAccount('admin','admin123')">admin</code>
-        <code onclick="fillAccount('zhangju','zhangju123')">zhangju</code>
-        <code onclick="fillAccount('lichu','lichu123')">lichu</code>
-        <code onclick="fillAccount('wangjing','wangjing123')">wangjing</code>
-        <code onclick="fillAccount('sunjing','sunjing123')">sunjing</code>
-        <code onclick="fillAccount('zhaojiaotong','zhaojiaotong123')">zhaojiaotong</code>
+        <code onclick="fillAccount('admin','admin123')">admin（管理员）</code>
+        <code onclick="fillAccount('zhangju','zhangju123')">zhangju（建设）</code>
+        <code onclick="fillAccount('lichu','lichu123')">lichu（质量）</code>
+        <code onclick="fillAccount('jiangchu','jiangchu123')">jiangchu（城管）</code>
+        <code onclick="fillAccount('zhouchu','zhouchu123')">zhouchu（城乡）</code>
+        <code onclick="fillAccount('chuzhang','chuzhang123')">chuzhang（交通）</code>
       </div>
-      <div class="account-tip">登录后可在「系统管理-用户管理」查看全部账号</div>
+      <div class="account-tip">登录后可在「系统管理-用户管理」查看全部账号 · 共18个账号覆盖12个处室</div>
     </div>
   </div>
   <div class="login-footer">Step 2 · 统一工作门户 &nbsp;|&nbsp; 雄安新区建设和交通管理局</div>
@@ -50,13 +50,14 @@
       <span class="brand-name">协同调度中心</span>
     </div>
     <div class="global-search">
-      <span class="search-ico">🔍</span>
+      <span class="search-ico"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
       <input id="globalSearch" placeholder="搜索应用、事项、人员…">
     </div>
     <div class="topbar-right">
+      <span class="sys-clock" id="sysClock"></span>
       <span id="refreshDot" class="refresh-dot counting" title="数据每30秒自动刷新">30s</span>
       <div class="bell" onclick="navTo('/messages')" title="消息中心">
-        <span class="bell-ico">🔔</span>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="bell-badge" id="msgBadge" style="display:none">0</span>
       </div>
       <div class="user-box">
