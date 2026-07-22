@@ -238,10 +238,10 @@ async function renderWorkbench() {
       <p>${dept} · ${role}　|　欢迎使用协同调度中心统一工作门户</p>
     </div>
     <div class="stat-row">
-      <div class="stat-box"><div class="lab">本月办件量</div><div class="num">${stats.month_handled}</div><div class="unit">件</div><div class="sub">较上月 +12%</div></div>
-      <div class="stat-box"><div class="lab">平均审批时效</div><div class="num">${stats.avg_duration}</div><div class="sub">承诺时限内办结</div></div>
-      <div class="stat-box"><div class="lab">按时办结率</div><div class="num">${stats.on_time_rate}</div><div class="sub">保持稳定</div></div>
-      <div class="stat-box"><div class="lab">在办事项</div><div class="num">${stats.pending}</div><div class="unit">项</div><div class="sub">含紧急 ${d.urgent_todo_count} 项</div></div>
+      <div class="stat-box wb-stat-click" onclick="navTo('/project')"><div class="lab">本月办件量</div><div class="num">${stats.month_handled}</div><div class="unit">件</div><div class="sub">较上月 +12%</div></div>
+      <div class="stat-box wb-stat-click" onclick="navTo('/project')"><div class="lab">平均审批时效</div><div class="num">${stats.avg_duration}</div><div class="sub">承诺时限内办结</div></div>
+      <div class="stat-box wb-stat-click" onclick="navTo('/project')"><div class="lab">按时办结率</div><div class="num">${stats.on_time_rate}</div><div class="sub">保持稳定</div></div>
+      <div class="stat-box wb-stat-click" onclick="navTo('/todos')"><div class="lab">在办事项</div><div class="num">${stats.pending}</div><div class="unit">项</div><div class="sub">含紧急 ${d.urgent_todo_count} 项</div></div>
     </div>
     <div class="work-grid">
       <div class="panel">
@@ -270,19 +270,19 @@ async function renderWorkbench() {
         </div>
         <div class="xa-pulse-body">
           <div class="xa-pulse-grid">
-            <div class="xa-pulse-cell">
+            <div class="xa-pulse-cell xa-pulse-click" onclick="openCoreDetail('cj01')">
               <div class="pl">在建项目</div>
               <div><span class="pv">${inProgress}</span><span class="pu">个</span></div>
             </div>
-            <div class="xa-pulse-cell">
+            <div class="xa-pulse-cell xa-pulse-click" onclick="navTo('/project')">
               <div class="pl">累计立项</div>
               <div><span class="pv">${total}</span><span class="pu">个</span></div>
             </div>
-            <div class="xa-pulse-cell">
+            <div class="xa-pulse-cell xa-pulse-click" onclick="openCoreDetail('cj14')">
               <div class="pl">投资总额</div>
               <div><span class="pv">${totalInvestYi}</span><span class="pu">亿元</span></div>
             </div>
-            <div class="xa-pulse-cell">
+            <div class="xa-pulse-cell xa-pulse-click" onclick="navTo('/project')">
               <div class="pl">逾期预警</div>
               <div><span class="pv">${overdue}</span><span class="pu">项</span></div>
             </div>
@@ -602,10 +602,10 @@ async function renderDataOverview() {
   const domNames = { 1: '城乡建设', 2: '交通运输', 3: '水利水务', 4: '城市管理' };
 
   let html = `<div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-    <div class="stat-box"><div class="lab">数据资源总数</div><div class="num">${d.resource_count}</div></div>
-    <div class="stat-box"><div class="lab">标准指标数</div><div class="num">${d.indicator_count}</div></div>
-    <div class="stat-box"><div class="lab">主题库记录数</div><div class="num">${d.total_records}</div></div>
-    <div class="stat-box"><div class="lab">数据源状态</div><div class="num" style="color:var(--green)">正常</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('resources')"><div class="lab">数据资源总数</div><div class="num">${d.resource_count}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('indicators')"><div class="lab">标准指标数</div><div class="num">${d.indicator_count}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('catalog')"><div class="lab">主题库记录数</div><div class="num">${d.total_records}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('governance')"><div class="lab">数据源状态</div><div class="num" style="color:var(--green)">正常</div></div>
   </div>`;
 
   html += `<div class="work-grid" style="grid-template-columns:repeat(4,1fr)">`;
@@ -655,7 +655,7 @@ async function renderDataResources() {
 
   if (!list.length) { document.getElementById('resList').innerHTML = '<div class="empty">暂无数据资源</div>'; return; }
   document.getElementById('resList').innerHTML = `<div class="dc-res-grid">${list.map(r => `
-    <div class="dc-res-card">
+    <div class="dc-res-card dc-res-click" onclick="showResDetail(${r.id},'${_esc(r.name)}')">
       <div class="dc-res-head">
         <span class="dc-res-ico">${['','🏗️','🚌','💧','🏙️','📋'][r.domain] || '📋'}</span>
         <span class="dc-res-domain">${r.domain_name}</span>
@@ -735,6 +735,34 @@ async function showIndicatorTrend(code, name, unit) {
     }).join('')}</div>`;
 }
 
+/* 数据资源详情弹窗 */
+async function showResDetail(id, name) {
+  const data = await api('/api/data-resources/' + id);
+  if (!data || data.code !== 200) { showToast('加载失败', 'warn'); return; }
+  const r = data.data;
+  let fieldsHtml = '';
+  if (r.fields_schema) {
+    try {
+      const fields = JSON.parse(r.fields_schema);
+      fieldsHtml = `<div class="ov-section-title">📋 字段 schema</div>
+        <div class="ov-detail-table"><table><thead><tr><th>字段名</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        ${fields.map(f => `<tr><td><code>${f.name}</code></td><td>${f.type || '-'}</td><td>${f.comment || '-'}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    } catch(e) {}
+  }
+  showOvModal(name, `
+    <div class="ov-summary-card">
+      <div><strong>来源系统</strong><div>${r.source_system || '-'}</div></div>
+      <div><strong>表名</strong><div>${r.table_name || '-'}</div></div>
+      <div><strong>记录数</strong><div>${r.record_count ?? '-'}</div></div>
+      <div><strong>更新频率</strong><div>${r.update_freq || '-'}</div></div>
+    </div>
+    <div class="ov-section-title">📝 数据描述</div>
+    <p style="color:var(--text-2);font-size:13px;line-height:1.7">${r.description || '暂无描述'}</p>
+    ${fieldsHtml}
+  `, { width: 640 });
+}
+
 /* -- 数据治理：一个数据一个源头 -- */
 async function renderDataGovernance() {
   const body = document.getElementById('dcBody');
@@ -765,11 +793,11 @@ async function renderDataGovernance() {
   </div>`;
 
   html += `<div class="stat-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-    <div class="stat-box"><div class="lab">数据资源总数</div><div class="num">${g.resource_count}</div></div>
-    <div class="stat-box"><div class="lab">标准指标数</div><div class="num">${g.indicator_count}</div></div>
-    <div class="stat-box"><div class="lab">处室覆盖率</div><div class="num" style="color:${g.coverage.overall_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.overall_pct}%</div></div>
-    <div class="stat-box"><div class="lab">源头系统数</div><div class="num">${g.source_systems.length}</div></div>
-    <div class="stat-box"><div class="lab">责任人明确率</div><div class="num" style="color:${g.coverage.resource_person_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.resource_person_pct}%</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('catalog')"><div class="lab">数据资源总数</div><div class="num">${g.resource_count}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('indicators')"><div class="lab">标准指标数</div><div class="num">${g.indicator_count}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('governance')"><div class="lab">处室覆盖率</div><div class="num" style="color:${g.coverage.overall_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.overall_pct}%</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('catalog')"><div class="lab">源头系统数</div><div class="num">${g.source_systems.length}</div></div>
+    <div class="stat-box dc-stat-click" onclick="switchDataTab('governance')"><div class="lab">责任人明确率</div><div class="num" style="color:${g.coverage.resource_person_pct >= 90 ? 'var(--green)' : 'var(--orange)'}">${g.coverage.resource_person_pct}%</div></div>
   </div>`;
 
   // ===== 二、处室数据归属分布 =====
@@ -813,7 +841,7 @@ async function renderDataGovernance() {
   } else {
     resources.forEach((r, i) => {
       const qCls = r.quality_status === '良好' ? 'q-good' : r.quality_status === '一般' ? 'q-ok' : 'q-bad';
-      html += `<tr>
+      html += `<tr class="gov-row-click" onclick="showResDetail(${r.id},'${_esc(r.name)}')">
         <td style="color:var(--txt-3)">${i + 1}</td>
         <td class="gov-res-name" title="${r.description || ''}">${r.name}</td>
         <td><span class="tag tag-blue" style="font-size:11px">${r.domain_name}</span></td>
@@ -850,7 +878,7 @@ async function renderDataGovernance() {
     html += `<tr><td colspan="8" class="text-center" style="color:var(--txt-3);padding:24px">暂无指标</td></tr>`;
   } else {
     indicators.forEach((ind, i) => {
-      html += `<tr>
+      html += `<tr class="gov-row-click" onclick="showIndicatorTrend('${ind.code}','${_esc(ind.name)}','${ind.unit}')">
         <td style="color:var(--txt-3)">${i + 1}</td>
         <td><code>${ind.code}</code></td>
         <td class="gov-res-name">${ind.name} <span style="font-size:11px;color:var(--txt-3)">${ind.unit}</span></td>
@@ -1081,7 +1109,7 @@ async function renderAIWarnings() {
       <div class="ai-result-meta">检查项：${d.stats.total_checks} 项 · 触发预警：${d.stats.triggered} 项 · 紧急待办：${d.stats.urgent_todos} 项 · 逾期项目：${d.stats.overdue_projects} 个</div>
       <div class="ai-summary">${d.summary}</div>
       ${d.alerts.length ? `<div class="ai-alert-list">${d.alerts.map(a => `
-        <div class="ai-alert-item ${a.severity}">
+        <div class="ai-alert-item ${a.severity} ai-alert-click" onclick="navTo('/topic')">
           <div class="ai-alert-head"><span class="tag ${a.severity==='high'?'tag-red':'tag-orange'}">${a.severity==='high'?'高':'中'}</span> ${a.indicator}: <b>${a.value} ${a.unit}</b></div>
           <div class="ai-alert-advice">💡 ${a.advice}</div>
         </div>`).join('')}</div>` : '<div class="empty">✅ 所有指标正常</div>'}
@@ -1365,8 +1393,8 @@ async function loadTopicContent(cfg) {
   }
   
   // ===== 底部：核心统计 + 亮点 =====
-  const statCards = cfg.stats.map(s => `
-    <div class="tp-stat-card">
+  const statCards = cfg.stats.map((s, idx) => `
+    <div class="tp-stat-card tp-stat-click" onclick="navTo('/project')">
       <div class="tp-stat-val">${s.value}<small>${s.unit}</small></div>
       <div class="tp-stat-label">${s.label}</div>
     </div>`).join('');
@@ -1440,10 +1468,10 @@ async function renderApprovalEfficiency() {
   const sm = d.summary;
 
   let html = `<div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
-    <div class="stat-box"><div class="lab">审批总量</div><div class="num">${sm.total_approvals}</div><div class="sub">含待办 ${sm.pending} 条</div></div>
-    <div class="stat-box"><div class="lab">平均审批时长</div><div class="num">${sm.avg_days}<span class="unit">天</span></div><div class="sub">${sm.avg_days <= 2 ? '高效' : sm.avg_days <= 5 ? '正常' : '偏慢'}</div></div>
-    <div class="stat-box" style="border-left:2px solid var(--red)"><div class="lab">超时待办</div><div class="num" style="color:${sm.overdue > 0 ? 'var(--red)' : 'var(--green)'}">${sm.overdue}</div><div class="sub">${sm.overdue > 0 ? '需催办' : '无超时 ✓'}</div></div>
-    <div class="stat-box" style="border-left:2px solid var(--green)"><div class="lab">按时办结率</div><div class="num" style="color:var(--green)">${sm.on_time_rate}%</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">审批总量</div><div class="num">${sm.total_approvals}</div><div class="sub">含待办 ${sm.pending} 条</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">平均审批时长</div><div class="num">${sm.avg_days}<span class="unit">天</span></div><div class="sub">${sm.avg_days <= 2 ? '高效' : sm.avg_days <= 5 ? '正常' : '偏慢'}</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')" style="border-left:2px solid var(--red)"><div class="lab">超时待办</div><div class="num" style="color:${sm.overdue > 0 ? 'var(--red)' : 'var(--green)'}">${sm.overdue}</div><div class="sub">${sm.overdue > 0 ? '需催办' : '无超时 ✓'}</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')" style="border-left:2px solid var(--green)"><div class="lab">按时办结率</div><div class="num" style="color:var(--green)">${sm.on_time_rate}%</div></div>
   </div>`;
 
   // 处室效率排行
@@ -1463,7 +1491,7 @@ async function renderApprovalEfficiency() {
     d.departments.forEach((dep, i) => {
       const overdueCls = dep.overdue > 0 ? 'style="color:var(--red);font-weight:600"' : '';
       const pendingCls = dep.pending > 0 ? 'style="color:var(--orange);font-weight:600"' : '';
-      html += `<tr>
+      html += `<tr class="eff-row-click" onclick="navTo('/project')">
         <td style="color:var(--txt-3)">${i+1}</td>
         <td><span class="dept-chip">${dep.dept}</span></td>
         <td>${dep.total}</td>
@@ -1498,10 +1526,10 @@ async function renderPendingApprovals() {
 
   // 统计卡
   html += `<div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-    <div class="stat-box" style="border-left:2px solid var(--orange)"><div class="lab">待我审批</div><div class="num" style="color:var(--orange)">${myPending.length}</div><div class="sub">${myDept || '全部处室'}</div></div>
-    <div class="stat-box"><div class="lab">超时未处理</div><div class="num" style="color:${myPending.filter(a=>a.is_overdue).length>0?'var(--red)':'var(--green)'}">${myPending.filter(a=>a.is_overdue).length}</div><div class="sub">需立即处理</div></div>
-    <div class="stat-box"><div class="lab">已选中</div><div class="num" id="batchSelectedCount" style="color:var(--cyan)">${selectedApprovals.size}</div><div class="sub">条审批事项</div></div>
-    <div class="stat-box"><div class="lab">全部待审批</div><div class="num">${list.length}</div><div class="sub">全局视角</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')" style="border-left:2px solid var(--orange)"><div class="lab">待我审批</div><div class="num" style="color:var(--orange)">${myPending.length}</div><div class="sub">${myDept || '全部处室'}</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">超时未处理</div><div class="num" style="color:${myPending.filter(a=>a.is_overdue).length>0?'var(--red)':'var(--green)'}">${myPending.filter(a=>a.is_overdue).length}</div><div class="sub">需立即处理</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">已选中</div><div class="num" id="batchSelectedCount" style="color:var(--cyan)">${selectedApprovals.size}</div><div class="sub">条审批事项</div></div>
+    <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">全部待审批</div><div class="num">${list.length}</div><div class="sub">全局视角</div></div>
   </div>`;
 
   if (!myPending.length) {
@@ -1666,11 +1694,11 @@ async function renderProjectList() {
   // 统计条
   if (s) {
     html += `<div class="stat-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px">
-      <div class="stat-box"><div class="lab">项目总数</div><div class="num">${s.total}</div></div>
-      <div class="stat-box"><div class="lab">总投资</div><div class="num" style="font-size:24px">${(s.total_invest/10000).toFixed(0)}<span class="unit">亿元</span></div></div>
-      <div class="stat-box" style="border-left:2px solid var(--red)"><div class="lab">逾期</div><div class="num" style="color:var(--red)">${s.risk_summary.overdue}</div></div>
-      <div class="stat-box" style="border-left:2px solid var(--orange)"><div class="lab">临近</div><div class="num" style="color:var(--orange)">${s.risk_summary.near_due}</div></div>
-      <div class="stat-box" style="border-left:2px solid var(--green)"><div class="lab">正常</div><div class="num" style="color:var(--green)">${s.risk_summary.normal}</div></div>
+      <div class="stat-box proj-stat-click" onclick="navTo('/project')"><div class="lab">项目总数</div><div class="num">${s.total}</div></div>
+      <div class="stat-box proj-stat-click" onclick="openCoreDetail('cj14')"><div class="lab">总投资</div><div class="num" style="font-size:24px">${(s.total_invest/10000).toFixed(0)}<span class="unit">亿元</span></div></div>
+      <div class="stat-box proj-stat-click" onclick="projFilter.alert='overdue';renderProjectList()"><div class="lab">逾期</div><div class="num" style="color:var(--red)">${s.risk_summary.overdue}</div></div>
+      <div class="stat-box proj-stat-click" onclick="projFilter.alert='near_due';renderProjectList()"><div class="lab">临近</div><div class="num" style="color:var(--orange)">${s.risk_summary.near_due}</div></div>
+      <div class="stat-box proj-stat-click" onclick="projFilter.alert='';renderProjectList()"><div class="lab">正常</div><div class="num" style="color:var(--green)">${s.risk_summary.normal}</div></div>
     </div>`;
   }
 

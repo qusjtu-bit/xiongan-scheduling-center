@@ -1304,3 +1304,67 @@ body {
   border-bottom: 1px solid var(--border-light);
   display: flex; align-items: center; gap: 8px;
 }
+
+/* ========== 25. 全板块交互增强（工作台/数据中心/专题/项目/AI） ========== */
+
+/* 工作台 stat-box 可点击 */
+.wb-stat-click { cursor: pointer; transition: all .25s ease; }
+.wb-stat-click:hover {
+  border-color: rgba(6,182,212,.3) !important;
+  box-shadow: 0 0 16px rgba(6,182,212,.08);
+  transform: translateY(-1px);
+}
+
+/* 雄安数说 cell 可点击 */
+.xa-pulse-click { cursor: pointer; transition: all .2s ease; border-radius: 8px; }
+.xa-pulse-click:hover {
+  background: rgba(6,182,212,.08);
+  box-shadow: 0 0 12px rgba(6,182,212,.06);
+}
+
+/* 数据中心 stat-box 可点击 */
+.dc-stat-click { cursor: pointer; transition: all .25s ease; }
+.dc-stat-click:hover {
+  border-color: rgba(6,182,212,.3) !important;
+  box-shadow: 0 0 16px rgba(6,182,212,.08);
+  transform: translateY(-1px);
+}
+
+/* 数据资源卡片可点击 */
+.dc-res-click { cursor: pointer; transition: all .25s ease; }
+.dc-res-click:hover {
+  border-color: rgba(6,182,212,.3) !important;
+  box-shadow: 0 4px 20px rgba(6,182,212,.1);
+  transform: translateY(-2px);
+}
+
+/* 数据治理表格行可点击 */
+.gov-row-click { cursor: pointer; transition: background .2s; }
+.gov-row-click:hover { background: rgba(6,182,212,.06); }
+
+/* 业务专题统计卡片可点击 */
+.tp-stat-click { cursor: pointer; transition: all .25s ease; }
+.tp-stat-click:hover {
+  border-color: rgba(6,182,212,.3) !important;
+  box-shadow: 0 0 16px rgba(6,182,212,.08);
+  transform: translateY(-1px);
+}
+
+/* 项目统计卡片可点击 */
+.proj-stat-click { cursor: pointer; transition: all .25s ease; }
+.proj-stat-click:hover {
+  border-color: rgba(6,182,212,.3) !important;
+  box-shadow: 0 0 16px rgba(6,182,212,.08);
+  transform: translateY(-1px);
+}
+
+/* 审批效率表格行可点击 */
+.eff-row-click { cursor: pointer; transition: background .2s; }
+.eff-row-click:hover { background: rgba(6,182,212,.06); }
+
+/* AI 预警项可点击 */
+.ai-alert-click { cursor: pointer; transition: all .2s ease; }
+.ai-alert-click:hover {
+  background: rgba(255,77,79,.06);
+  border-color: rgba(255,77,79,.2) !important;
+}
