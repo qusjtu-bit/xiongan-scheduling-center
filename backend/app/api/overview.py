@@ -4,11 +4,13 @@
 
 聚合四大领域核心指标 + GIS地图标记 + 实时预警 + 事件时间线
 """
-from flask import Blueprint, jsonify
+from datetime import datetime
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from app import db
 from app.models import Message, Todo, Indicator, IndicatorData
-from app.models import ProjectInfo, BusinessLicense, TransportStation, WaterBody, MunicipalNode
+from app.models import ProjectInfo, ProjectStage, ApprovalRecord
+from app.models import BusinessLicense, TransportStation, WaterBody, MunicipalNode
 
 overview_bp = Blueprint('overview', __name__)
 
@@ -116,6 +118,7 @@ def dashboard():
             'level': m.level,
             'level_label': {1: '一般', 2: '较重', 3: '严重'}.get(m.level, '一般'),
             'sender': m.sender,
+            'content': m.content or '暂无详细内容',
             'created_at': m.created_at.strftime('%m-%d %H:%M') if m.created_at else '',
         })
 
@@ -176,4 +179,203 @@ def dashboard():
         'warnings': warnings,
         'timeline': timeline,
         'domain_stats': domain_stats,
+    })
+
+
+# ===================================================================
+#  核心指标详情下钻
+# ===================================================================
+
+@overview_bp.route('/overview/core-detail', methods=['POST'])
+@jwt_required()
+def core_detail():
+    """根据指标编码返回详情明细数据"""
+    code = request.json.get('code', '')
+    if not code:
+        return jsonify(code=400, message='缺少指标编码'), 400
+
+    data = {'code': code, 'rows': [], 'title': '', 'columns': []}
+
+    if code == 'cj01':
+        # 在建项目列表
+        data['title'] = '在建项目清单'
+        data['columns'] = ['项目名称', '类型', '片区', '投资(亿元)', '进度', '阶段']
+        projects = ProjectInfo.query.filter(ProjectInfo.stage.in_(['建设', '施工'])).all()
+        for p in projects:
+            data['rows'].append([
+                p.name, p.ptype, p.area,
+                round(p.invest / 10000, 1), f'{p.progress}%', p.stage,
+            ])
+
+    elif code == 'cj02':
+        # 本月办件 — 审批记录
+        data['title'] = '本月审批办件'
+        data['columns'] = ['审批类型', '关联项目', '申请日期', '状态', '审批人']
+        now = datetime.now()
+        month_start = f'{now.year}-{now.month:02d}'
+        records = ApprovalRecord.query.filter(
+            ApprovalRecord.apply_date.like(f'{month_start}%')
+        ).all()
+        proj_map = {p.id: p.name for p in ProjectInfo.query.all()}
+        for r in records:
+            data['rows'].append([
+                r.approval_type, proj_map.get(r.project_id, '-'),
+                r.apply_date, r.status, r.approver or '-',
+            ])
+
+    elif code == 'cj03':
+        # 消防验收通过率 — 消防验收记录
+        data['title'] = '消防验收记录'
+        data['columns'] = ['审批类型', '关联项目', '申请日期', '结果', '审批人']
+        records = ApprovalRecord.query.filter(
+            ApprovalRecord.approval_type.like('%消防%')
+        ).all()
+        proj_map = {p.id: p.name for p in ProjectInfo.query.all()}
+        total = len(records)
+        passed = sum(1 for r in records if r.status == '已通过')
+        data['summary'] = f'共 {total} 项，已通过 {passed} 项，通过率 {round(passed/total*100,1) if total else 0}%'
+        for r in records:
+            data['rows'].append([
+                r.approval_type, proj_map.get(r.project_id, '-'),
+                r.apply_date, r.status, r.approver or '-',
+            ])
+
+    elif code == 'cj04':
+        # 隐患数 — 用 IndicatorData 返回近期趋势
+        data['title'] = '隐患统计'
+        data['columns'] = ['周期', '隐患数量']
+        records = IndicatorData.query.filter_by(indicator_code='cj04').order_by(
+            IndicatorData.period.desc()).limit(12).all()
+        for r in records:
+            data['rows'].append([r.period, int(r.value)])
+        ind = Indicator.query.filter_by(code='cj04').first()
+        data['summary'] = ind.definition if ind and ind.definition else ''
+
+    elif code == 'cj05':
+        # 整改闭环率 — 近期趋势
+        data['title'] = '整改闭环率'
+        data['columns'] = ['周期', '闭环率(%)']
+        records = IndicatorData.query.filter_by(indicator_code='cj05').order_by(
+            IndicatorData.period.desc()).limit(12).all()
+        for r in records:
+            data['rows'].append([r.period, r.value])
+        ind = Indicator.query.filter_by(code='cj05').first()
+        data['summary'] = ind.definition if ind and ind.definition else ''
+
+    elif code == 'cj06':
+        # 考勤率 — 近期趋势
+        data['title'] = '考勤率统计'
+        data['columns'] = ['周期', '考勤率(%)']
+        records = IndicatorData.query.filter_by(indicator_code='cj06').order_by(
+            IndicatorData.period.desc()).limit(12).all()
+        for r in records:
+            data['rows'].append([r.period, r.value])
+        ind = Indicator.query.filter_by(code='cj06').first()
+        data['summary'] = ind.definition if ind and ind.definition else ''
+
+    elif code == 'cj14':
+        # 总投资
+        data['title'] = '项目投资汇总'
+        data['columns'] = ['项目名称', '类型', '片区', '投资(万元)', '阶段']
+        projects = ProjectInfo.query.order_by(ProjectInfo.invest.desc()).all()
+        for p in projects:
+            data['rows'].append([
+                p.name, p.ptype, p.area,
+                round(p.invest, 0), p.stage,
+            ])
+
+    elif code == 'jt05':
+        # 公交日客流
+        data['title'] = '公交站点客流排名'
+        data['columns'] = ['站点名称', '途经线路', '日均客流(人次)']
+        stations = TransportStation.query.order_by(
+            TransportStation.daily_flow.desc()).all()
+        for s in stations:
+            data['rows'].append([s.name, s.lines, s.daily_flow])
+
+    return jsonify(code=200, message='success', data=data)
+
+
+# ===================================================================
+#  领域详情下钻
+# ===================================================================
+
+@overview_bp.route('/overview/domain-detail/<int:domain>', methods=['GET'])
+@jwt_required()
+def domain_detail(domain):
+    """返回某一领域的完整指标 + 实体列表"""
+    if domain not in DOMAIN_LABELS:
+        return jsonify(code=400, message='无效领域'), 400
+
+    # 全部指标
+    indicators = Indicator.query.filter_by(domain=domain).order_by(
+        Indicator.sort, Indicator.code).all()
+    ind_list = []
+    for ind in indicators:
+        val = _get_indicator_val(ind.code)
+        ind_list.append({
+            'code': ind.code, 'name': ind.name,
+            'value': val, 'unit': ind.unit,
+            'definition': ind.definition or '',
+        })
+
+    # 实体列表
+    ptype_domain = {'房建': 1, '市政': 1, '交通': 2, '水利': 3, '园林': 4}
+    entities = []
+    projects = ProjectInfo.query.all()
+    domain_projects = [p for p in projects if ptype_domain.get(p.ptype) == domain]
+    for p in domain_projects:
+        entities.append({
+            'type': 'project', 'id': p.id, 'name': p.name,
+            'ptype': p.ptype, 'area': p.area,
+            'invest': p.invest, 'progress': p.progress, 'stage': p.stage,
+            'lng': p.lng, 'lat': p.lat,
+        })
+
+    # 领域特有实体
+    extra_entities = []
+    if domain == 1:
+        businesses = BusinessLicense.query.all()
+        for b in businesses:
+            extra_entities.append({
+                'type': 'business', 'id': b.id, 'name': b.name,
+                'cert_level': b.cert_level, 'area': b.area, 'workers': b.workers,
+            })
+    elif domain == 2:
+        stations = TransportStation.query.all()
+        for s in stations:
+            extra_entities.append({
+                'type': 'station', 'id': s.id, 'name': s.name,
+                'lines': s.lines, 'daily_flow': s.daily_flow,
+                'lng': s.lng, 'lat': s.lat,
+            })
+    elif domain == 3:
+        waters = WaterBody.query.all()
+        for w in waters:
+            extra_entities.append({
+                'type': 'water', 'id': w.id, 'name': w.name,
+                'wtype': w.wtype, 'area': w.area,
+                'water_area': w.water_area, 'quality': w.quality,
+            })
+    elif domain == 4:
+        munis = MunicipalNode.query.all()
+        for m in munis:
+            extra_entities.append({
+                'type': 'municipal', 'id': m.id, 'name': m.name,
+                'ftype': m.ftype, 'area': m.area, 'status': m.status,
+                'lng': m.lng, 'lat': m.lat,
+            })
+
+    return jsonify(code=200, message='success', data={
+        'domain': domain,
+        'name': DOMAIN_LABELS[domain],
+        'icon': DOMAIN_ICONS[domain],
+        'indicators': ind_list,
+        'entities': entities,
+        'extra_entities': extra_entities,
+        'stats': {
+            'total_projects': len(entities),
+            'total_indicators': len(ind_list),
+            'total_extra': len(extra_entities),
+        },
     })

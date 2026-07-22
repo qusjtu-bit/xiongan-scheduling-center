@@ -1895,6 +1895,12 @@ async function exportProjectsExcel() {
 /* ---------- 态势大屏 ---------- */
 let overviewRefreshTimer = null;
 
+// HTML 转义（安全渲染用户内容）
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 async function renderOverview() {
   const data = await api('/api/overview/dashboard');
   if (!data || data.code !== 200) {
@@ -1903,30 +1909,30 @@ async function renderOverview() {
   }
   const d = data.data;
 
-  // 领域指标面板 HTML
+  // 核心指标项（带 code 和点击）
+  const coreItems = [
+    { code:'cj01', label:'在建项目', value:d.core.in_progress_projects, unit:'个', color:'var(--cyan)' },
+    { code:'cj02', label:'本月办件', value:d.core.month_permits, unit:'件', color:'var(--blue)' },
+    { code:'cj03', label:'消防验收通过率', value:d.core.fire_pass_rate, unit:'%', color:'var(--green)' },
+    { code:'cj04', label:'隐患数', value:d.core.hazards, unit:'个', color:'var(--orange)' },
+    { code:'cj05', label:'整改闭环率', value:d.core.closure_rate, unit:'%', color:'var(--green)' },
+    { code:'cj06', label:'考勤率', value:d.core.attendance_rate, unit:'%', color:'var(--blue)' },
+    { code:'cj14', label:'总投资', value:d.core.total_invest, unit:'亿元', color:'var(--cyan)' },
+    { code:'jt05', label:'公交日客流', value:d.core.bus_daily_flow, unit:'万人次', color:'var(--orange)' },
+  ];
+
+  // 领域指标面板 HTML（可点击）
   function domainPanel(dp, side) {
     const rows = dp.indicators.map(ind => `
       <div class="ov-ind-row">
         <span class="ov-ind-name">${ind.name}</span>
         <span class="ov-ind-val">${ind.value ?? '-'}<small>${ind.unit}</small></span>
       </div>`).join('');
-    return `<div class="ov-domain-panel">
+    return `<div class="ov-domain-panel ov-domain-clickable" onclick="openDomainDetail(${dp.domain})" title="点击查看${dp.name}详细数据">
       <div class="ov-dom-head"><span>${dp.icon}</span> ${dp.name}</div>
       <div class="ov-ind-list">${rows}</div>
     </div>`;
   }
-
-  // 核心指标条
-  const coreItems = [
-    { label: '在建项目', value: d.core.in_progress_projects, unit: '个', color: 'var(--cyan)' },
-    { label: '本月办件', value: d.core.month_permits, unit: '件', color: 'var(--blue)' },
-    { label: '消防验收通过率', value: d.core.fire_pass_rate, unit: '%', color: 'var(--green)' },
-    { label: '隐患数', value: d.core.hazards, unit: '个', color: 'var(--orange)' },
-    { label: '整改闭环率', value: d.core.closure_rate, unit: '%', color: 'var(--green)' },
-    { label: '考勤率', value: d.core.attendance_rate, unit: '%', color: 'var(--blue)' },
-    { label: '总投资', value: d.core.total_invest, unit: '亿元', color: 'var(--cyan)' },
-    { label: '公交日客流', value: d.core.bus_daily_flow, unit: '万人次', color: 'var(--orange)' },
-  ];
 
   // 构建完整 HTML
   const leftPanels = d.domain_panels.slice(0, 2).map(p => domainPanel(p, 'left')).join('');
@@ -1945,7 +1951,7 @@ async function renderOverview() {
         <span class="ov-live"><span class="ov-live-dot"></span>实时</span>
       </div>
       <div class="ov-core-strip">
-        ${coreItems.map(c => `<div class="ov-core-item"><span class="ov-core-label">${c.label}</span><span class="ov-core-val" style="color:${c.color}">${c.value}<small>${c.unit}</small></span></div>`).join('')}
+        ${coreItems.map(c => `<div class="ov-core-item" onclick="openCoreDetail('${c.code}')" title="点击查看${c.label}详情"><span class="ov-core-label">${c.label}</span><span class="ov-core-val" style="color:${c.color}">${c.value}<small>${c.unit}</small></span></div>`).join('')}
       </div>
     </div>
 
@@ -1987,7 +1993,7 @@ async function renderOverview() {
       <div class="ov-warn-scroll" id="ovWarnScroll">
         <div class="ov-warn-track">
           ${d.warnings.length ? d.warnings.map(w => `
-            <span class="ov-warn-item lvl-${w.level}">${w.title}<small>${w.sender} · ${w.created_at}</small></span>
+            <span class="ov-warn-item lvl-${w.level}" onclick="showWarnDetail(${w.id},'${esc(w.title)}','${esc(w.content)}','${esc(w.sender)}','${w.created_at}',${w.level})">${esc(w.title)}<small>${esc(w.sender)} · ${w.created_at}</small></span>
           `).join('') : '<span class="ov-warn-item">当前无预警</span>'}
         </div>
       </div>
@@ -2002,7 +2008,8 @@ async function renderOverview() {
   if (overviewRefreshTimer) clearInterval(overviewRefreshTimer);
   overviewRefreshTimer = setInterval(tick, 1000);
 
-  // 画地图
+  // 重置地图过滤 + 画地图
+  window._ovMarkerFilter = null;
   setTimeout(() => drawOverviewMap(d.map_markers), 100);
 
   // 预警滚动动画
@@ -2109,13 +2116,56 @@ function drawOverviewMap(markers) {
     fillColor: '#06b6d4', fillOpacity: 0.1,
   }).addTo(map);
 
-  // 项目标记点（脉冲发光）
+  // 存储标记数据，但不绘制（由 refreshOvMapMarkers 按需绘制）
+  window._ovAllMarkers = markers || [];
+  window._ovMarkerLayer = null;
+  window._ovMap = map;
+
+  // 如果已有过滤条件则立即按需绘制
+  if (window._ovMarkerFilter) {
+    setTimeout(refreshOvMapMarkers, 50);
+  }
+}
+
+/**
+ * 按当前 _ovMarkerFilter 刷新地图标记
+ * 过滤规则：
+ *   { type:'core', code:'cj01' } → project 类型标记
+ *   { type:'core', code:'jt05' } → station 类型标记
+ *   { type:'core', code:'cj14' } → project 类型标记
+ *   { type:'domain', domain:1 }  → 按领域筛选项目ptype
+ *   null                         → 不显示标记
+ */
+function refreshOvMapMarkers() {
+  if (!window._ovMap || !window._ovAllMarkers) return;
+  if (window._ovMarkerLayer) {
+    window._ovMap.removeLayer(window._ovMarkerLayer);
+    window._ovMarkerLayer = null;
+  }
+  const filter = window._ovMarkerFilter;
+  if (!filter) return;
+
+  let targetTypes = [];
+  if (filter.type === 'core') {
+    if (filter.code === 'jt05') targetTypes = ['station'];
+    else targetTypes = ['project'];
+  } else if (filter.type === 'domain') {
+    if (filter.domain === 1) targetTypes = ['project'];
+    else if (filter.domain === 2) targetTypes = ['station'];
+    else if (filter.domain === 3) targetTypes = [];
+    else if (filter.domain === 4) targetTypes = ['municipal'];
+  }
+
+  const filtered = window._ovAllMarkers.filter(m => targetTypes.includes(m.type));
+  if (!filtered.length) return;
+
   const typeIcon = {
     project: { color: '#00d4ff', r: 8 },
     station: { color: '#ffb300', r: 6 },
-    facility: { color: '#69f0ae', r: 5 },
+    municipal: { color: '#69f0ae', r: 5 },
   };
-  for (const m of markers) {
+  window._ovMarkerLayer = L.layerGroup().addTo(window._ovMap);
+  for (const m of filtered) {
     const cfg = typeIcon[m.type] || typeIcon.project;
     const icon = L.divIcon({
       className: 'ov-marker',
@@ -2124,11 +2174,162 @@ function drawOverviewMap(markers) {
       iconSize: [cfg.r * 2, cfg.r * 2],
       iconAnchor: [cfg.r, cfg.r],
     });
-    L.marker([m.lat, m.lng], { icon }).addTo(map);
+    L.marker([m.lat, m.lng], { icon }).addTo(window._ovMarkerLayer);
+  }
+}
+
+/* ---------- 态势大屏：通用模态框 ---------- */
+function showOvModal(title, contentHTML, opts) {
+  opts = opts || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'ov-modal-overlay';
+  overlay.innerHTML = `
+    <div class="ov-modal-box" style="${opts.width ? 'width:'+opts.width : ''}">
+      <div class="ov-modal-head">
+        <span class="ov-modal-title">${title}</span>
+        <button class="ov-modal-close" id="ovModalClose">✕</button>
+      </div>
+      <div class="ov-modal-body">${contentHTML}</div>
+    </div>`;
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeOvModal();
+  });
+  document.body.appendChild(overlay);
+  const closeBtn = document.getElementById('ovModalClose');
+  if (closeBtn) closeBtn.addEventListener('click', closeOvModal);
+  // 动画
+  requestAnimationFrame(() => overlay.style.opacity = '1');
+
+  function closeOvModal() {
+    if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+    if (opts.onClose) opts.onClose();
+  }
+}
+
+/* ---------- 态势大屏：核心指标详情 ---------- */
+async function openCoreDetail(code) {
+  const data = await api('/api/overview/core-detail', { method: 'POST', body: JSON.stringify({ code }) });
+  if (!data || data.code !== 200) { showToast('数据加载失败', 'warn'); return; }
+  const dd = data.data;
+
+  // 标题映射
+  const labelMap = {
+    cj01:'在建项目', cj02:'本月办件', cj03:'消防验收通过率',
+    cj04:'隐患数', cj05:'整改闭环率', cj06:'考勤率',
+    cj14:'总投资', jt05:'公交日客流',
+  };
+
+  // 设置地图过滤
+  window._ovMarkerFilter = { type: 'core', code };
+  refreshOvMapMarkers();
+
+  // 构建表格
+  let html = '';
+  if (dd.summary) {
+    html += `<div class="ov-summary-card"><strong>${esc(dd.summary)}</strong></div>`;
+  }
+  if (dd.rows && dd.rows.length) {
+    html += `<table class="ov-detail-table"><thead><tr>${dd.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    html += dd.rows.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('');
+    html += `</tbody></table>`;
+  } else {
+    html += `<div class="empty">暂无详细数据</div>`;
   }
 
-  // 地图失效时清理
-  window._ovMap = map;
+  showOvModal(`${labelMap[code] || '详情'} · 明细数据`, html, {
+    onClose: () => { window._ovMarkerFilter = null; refreshOvMapMarkers(); }
+  });
+}
+
+/* ---------- 态势大屏：预警详情 ---------- */
+function showWarnDetail(id, title, content, sender, createdAt, level) {
+  const levelLabels = {1:'一般', 2:'较重', 3:'严重'};
+  const lvlColor = {1:'var(--warning)', 2:'var(--orange)', 3:'var(--danger)'};
+  const html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div><div style="color:var(--text-3);font-size:12px;margin-bottom:4px">标题</div><div style="font-size:15px;font-weight:600;color:var(--text)">${esc(title)}</div></div>
+      <div><div style="color:var(--text-3);font-size:12px;margin-bottom:4px">级别</div><span class="tag" style="background:${lvlColor[level]};color:#fff;border:none">${levelLabels[level] || level}</span></div>
+      <div><div style="color:var(--text-3);font-size:12px;margin-bottom:4px">发送方</div><div style="color:var(--text-2)">${esc(sender)}</div></div>
+      <div><div style="color:var(--text-3);font-size:12px;margin-bottom:4px">时间</div><div style="color:var(--text-2)">${createdAt}</div></div>
+    </div>
+    <div style="padding-top:14px;border-top:1px solid var(--border-light)">
+      <div style="color:var(--text-3);font-size:12px;margin-bottom:8px">详细内容</div>
+      <div style="color:var(--text-2);line-height:1.8;font-size:14px;white-space:pre-wrap">${esc(content || '暂无详细内容')}</div>
+    </div>`;
+  showOvModal('⚠️ 预警详情', html);
+}
+
+/* ---------- 态势大屏：领域详情 ---------- */
+async function openDomainDetail(domain) {
+  const data = await api('/api/overview/domain-detail/' + domain);
+  if (!data || data.code !== 200) { showToast('数据加载失败', 'warn'); return; }
+  const dd = data.data;
+
+  // 设置地图过滤
+  window._ovMarkerFilter = { type: 'domain', domain };
+  refreshOvMapMarkers();
+
+  let html = '';
+
+  // 基础统计
+  html += `<div class="ov-summary-card">共 <strong>${dd.stats.total_indicators}</strong> 项指标 · <strong>${dd.stats.total_projects}</strong> 个项目 · <strong>${dd.stats.total_extra}</strong> 条专项记录</div>`;
+
+  // 指标列表
+  if (dd.indicators && dd.indicators.length) {
+    html += `<div class="ov-section-title">📊 全部指标</div>`;
+    html += `<table class="ov-detail-table"><thead><tr><th>指标名称</th><th>最新值</th><th>单位</th><th>说明</th></tr></thead><tbody>`;
+    for (const ind of dd.indicators) {
+      html += `<tr><td>${esc(ind.name)}</td><td class="num">${ind.value ?? '-'}</td><td>${esc(ind.unit)}</td><td style="font-size:12px;color:var(--text-3)">${esc(ind.definition)}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  // 项目列表
+  if (dd.entities && dd.entities.length) {
+    html += `<div class="ov-section-title">🏗️ 项目列表（${dd.entities.length} 个）</div>`;
+    html += `<div class="ov-entity-grid">`;
+    for (const p of dd.entities) {
+      html += `<div class="ov-entity-card">
+        <div class="ov-entity-name">${esc(p.name)}</div>
+        <div class="ov-entity-meta">
+          <span class="ov-entity-tag">${esc(p.ptype)}</span>
+          <span>${esc(p.area)}</span>
+          <span>${(p.invest/10000).toFixed(1)}亿</span>
+          <span>${p.progress}%</span>
+          <span>${esc(p.stage)}</span>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // 专项实体
+  if (dd.extra_entities && dd.extra_entities.length) {
+    html += `<div class="ov-section-title">📋 专项数据（${dd.extra_entities.length} 条）</div>`;
+    html += `<div class="ov-entity-grid">`;
+    for (const e of dd.extra_entities) {
+      const metaParts = [];
+      if (e.cert_level) metaParts.push(e.cert_level);
+      if (e.area) metaParts.push(e.area);
+      if (e.workers) metaParts.push(`${e.workers}人`);
+      if (e.lines) metaParts.push(`线路:${e.lines}`);
+      if (e.daily_flow) metaParts.push(`日均客流${e.daily_flow}`);
+      if (e.wtype) metaParts.push(e.wtype);
+      if (e.water_area) metaParts.push(`水域${e.water_area}km²`);
+      if (e.quality) metaParts.push(`水质${e.quality}`);
+      if (e.ftype) metaParts.push(e.ftype);
+      if (e.status) metaParts.push(e.status);
+      html += `<div class="ov-entity-card">
+        <div class="ov-entity-name">${esc(e.name)}</div>
+        <div class="ov-entity-meta">${metaParts.map(p => `<span>${esc(p)}</span>`).join('')}</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  showOvModal(`${dd.icon || ''} ${esc(dd.name)} · 详细数据`, html, {
+    onClose: () => { window._ovMarkerFilter = null; refreshOvMapMarkers(); }
+  });
 }
 
 function initWarnScroll() {
