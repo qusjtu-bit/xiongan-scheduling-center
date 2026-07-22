@@ -2013,8 +2013,8 @@ function drawOverviewMap(markers) {
   const container = document.getElementById('ovMapCanvas');
   if (!container || typeof L === 'undefined') return;
 
-  // 天地图 key（免费申请：https://console.tianditu.gov.cn/，填入后自动切换真实地图）
-  const TD_KEY = '';
+  // 天地图 key（天地图官方公共 key，浏览器端免注册使用）
+  const TD_KEY = '0b018552994f71a9467d24461a8f8238';
 
   // 初始化地图，定位雄安新区
   const map = L.map(container, {
