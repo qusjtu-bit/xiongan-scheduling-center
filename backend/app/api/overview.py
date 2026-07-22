@@ -30,20 +30,23 @@ def _get_indicator_val(code):
 def dashboard():
     """态势大屏聚合数据"""
 
-    # ======== 1. 核心指标 ========
+    # ======== 1. 核心指标（与项目实体表联动，避免数据脱钩） ========
+    _all_projects = ProjectInfo.query.all()
+    _in_progress = [p for p in _all_projects if p.progress < 100]
+    _total_invest_wan = sum((p.invest or 0) for p in _all_projects)  # 万元
     core = {
-        'in_progress_projects': int(round(_get_indicator_val('cj01') or 0)),
+        'in_progress_projects': len(_in_progress),
         'month_permits': int(round(_get_indicator_val('cj02') or 0)),
         'fire_pass_rate': _get_indicator_val('cj03') or 0,
         'hazards': int(round(_get_indicator_val('cj04') or 0)),
         'closure_rate': _get_indicator_val('cj05') or 0,
         'attendance_rate': _get_indicator_val('cj06') or 0,
-        'total_invest': _get_indicator_val('cj14') or 0,
+        'total_invest': round(_total_invest_wan / 10000, 1),  # 万元 → 亿元
         'bus_daily_flow': _get_indicator_val('jt05') or 0,
         'water_quality_rate': _get_indicator_val('sl02') or 0,
         'road_intact_rate': _get_indicator_val('cg04') or 0,
         'green_coverage': _get_indicator_val('cg11') or 0,
-        'total_projects': ProjectInfo.query.count(),
+        'total_projects': len(_all_projects),
         'total_businesses': BusinessLicense.query.count(),
         'total_stations': TransportStation.query.count(),
         'total_waters': WaterBody.query.count(),
@@ -197,10 +200,11 @@ def core_detail():
     data = {'code': code, 'rows': [], 'title': '', 'columns': []}
 
     if code == 'cj01':
-        # 在建项目列表
+        # 在建项目列表（未完工项目 = progress<100）
         data['title'] = '在建项目清单'
         data['columns'] = ['项目名称', '类型', '片区', '投资(亿元)', '进度', '阶段']
-        projects = ProjectInfo.query.filter(ProjectInfo.stage.in_(['建设', '施工'])).all()
+        projects = ProjectInfo.query.filter(ProjectInfo.progress < 100).order_by(ProjectInfo.id).all()
+        data['summary'] = f'共 {len(projects)} 个在建项目（progress < 100）'
         for p in projects:
             data['rows'].append([
                 p.name, p.ptype, p.area,
@@ -274,10 +278,12 @@ def core_detail():
         data['summary'] = ind.definition if ind and ind.definition else ''
 
     elif code == 'cj14':
-        # 总投资
+        # 总投资 — 展示所有项目（按投资降序）
         data['title'] = '项目投资汇总'
         data['columns'] = ['项目名称', '类型', '片区', '投资(万元)', '阶段']
         projects = ProjectInfo.query.order_by(ProjectInfo.invest.desc()).all()
+        total_yi = round(sum(p.invest for p in projects) / 10000, 1)
+        data['summary'] = f'共 {len(projects)} 个项目，合计投资 <strong>{total_yi} 亿元</strong>'
         for p in projects:
             data['rows'].append([
                 p.name, p.ptype, p.area,
