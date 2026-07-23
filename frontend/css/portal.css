@@ -898,6 +898,41 @@ body {
 .ov-map-container canvas { display: block; width: 100%; height: 100%; }
 .ov-map-legend { position: absolute; bottom: 10px; right: 12px; display: flex; gap: 12px; font-size: 11px; color: var(--text-3); background: rgba(6,11,28,.85); padding: 5px 12px; border-radius: var(--radius-sm); }
 
+/* ========== 二维/三维视图切换 ========== */
+.ov-map-switch { position: absolute; top: 10px; right: 12px; z-index: 450; display: flex; gap: 4px; }
+.ov-map-btn {
+  padding: 5px 14px; border-radius: 6px; background: rgba(7,13,36,.75);
+  color: var(--text-3); cursor: pointer; border: 1px solid var(--border);
+  font-size: 12px; transition: all .25s ease; user-select: none;
+}
+.ov-map-btn.active {
+  background: rgba(6,182,212,.15); color: var(--xa-cyan);
+  border-color: rgba(6,182,212,.3); font-weight: 600;
+}
+.ov-map-btn:hover { background: rgba(6,182,212,.08); color: var(--text-2); }
+
+/* ========== DTS 三维引擎容器 ========== */
+.ov-dts-container { background: #080d1f; }
+#ovDtsPlayer { width: 100%; height: 100%; display: block; }
+.ov-dts-overlay {
+  position: absolute; top: 10px; left: 12px; z-index: 400;
+  pointer-events: none; background: rgba(6,11,28,.8);
+  padding: 5px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: var(--xa-cyan);
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.ov-dts-status {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  z-index: 400; text-align: center; font-size: 14px;
+  background: rgba(7,13,36,.85); padding: 24px 32px;
+  border-radius: 8px; border: 1px solid var(--border);
+  line-height: 1.8;
+}
+.ov-dts-status small { color: var(--text-3); font-size: 12px; }
+.ov-dts-unavailable { color: var(--orange); }
+.ov-dts-loading { color: var(--xa-cyan); }
+.ov-dts-error { color: var(--danger); }
+
 .ov-timeline { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; max-height: 160px; overflow: hidden; }
 .ov-tl-head { font-size: 13px; font-weight: 600; color: var(--primary-light); margin-bottom: 8px; }
 .ov-tl-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 120px; }

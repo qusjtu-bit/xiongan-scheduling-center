@@ -2015,7 +2015,13 @@ async function renderOverview() {
     <div class="ov-main">
       <div class="ov-left">${leftPanels}</div>
       <div class="ov-center">
-        <div class="ov-map-container">
+        <!-- 二维/三维视图切换 -->
+        <div class="ov-map-switch" id="ovMapSwitch">
+          <span class="ov-map-btn active" data-mode="2d" onclick="switchMapView('2d')">二维地图</span>
+          <span class="ov-map-btn" data-mode="3d" onclick="switchMapView('3d')">三维CIM</span>
+        </div>
+        <!-- 二维地图容器 -->
+        <div class="ov-map-container" id="ovMapContainer2d">
           <div id="ovMapCanvas"></div>
           <div class="ov-map-overlay">
             <span class="ov-map-title">雄安新区 · 天地图</span>
@@ -2024,6 +2030,16 @@ async function renderOverview() {
             <span><i style="background:#00d4ff"></i>项目</span>
             <span><i style="background:#ffb300"></i>公交站</span>
             <span><i style="background:#69f0ae"></i>市政设施</span>
+          </div>
+        </div>
+        <!-- 三维引擎容器（默认隐藏） -->
+        <div class="ov-map-container ov-dts-container" id="ovMapContainer3d" style="display:none">
+          <div id="ovDtsPlayer"></div>
+          <div class="ov-dts-overlay">
+            <span class="ov-map-title">雄安新区 · 三维CIM</span>
+          </div>
+          <div class="ov-dts-status ov-dts-unavailable" id="ovDtsStatus">
+            ⚠️ 三维引擎未接入<br><small>请联系管理员配置DTS云渲染服务器地址</small>
           </div>
         </div>
         <!-- 事件时间线 -->
@@ -2068,8 +2084,43 @@ async function renderOverview() {
   window._ovMarkerFilter = null;
   setTimeout(() => drawOverviewMap(d.map_markers), 100);
 
+  // 加载DTS配置（静默，不阻塞渲染）
+  loadDtsConfig().catch(() => {});
+
   // 预警滚动动画
   initWarnScroll();
+}
+
+/* ---------- 二维/三维视图切换 ---------- */
+let currentMapView = '2d';
+
+function switchMapView(mode) {
+  if (mode === currentMapView) return;
+  currentMapView = mode;
+
+  // 更新按钮状态
+  document.querySelectorAll('.ov-map-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  const c2d = document.getElementById('ovMapContainer2d');
+  const c3d = document.getElementById('ovMapContainer3d');
+
+  if (mode === '3d') {
+    c2d.style.display = 'none';
+    c3d.style.display = '';
+    // 初始化DTS引擎（仅在首次切换到3d时）
+    if (!DTS_ENGINE.isAvailable && !DTS_ENGINE.isConnecting) {
+      DTS_ENGINE.init();
+    }
+  } else {
+    c3d.style.display = 'none';
+    c2d.style.display = '';
+    // Leaflet 地图 invalidateSize（从隐藏→显示需要重算尺寸）
+    if (window._ovMap) {
+      setTimeout(() => window._ovMap.invalidateSize(), 50);
+    }
+  }
 }
 
 function drawOverviewMap(markers) {

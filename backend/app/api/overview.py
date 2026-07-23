@@ -440,3 +440,21 @@ def domain_detail(domain):
             'total_extra': len(extra_entities),
         },
     })
+
+
+# ===================================================================
+#  DTS 三维引擎配置
+# ===================================================================
+
+@overview_bp.route('/overview/dts-config', methods=['GET'])
+@jwt_required()
+def dts_config():
+    """返回DTS三维引擎配置信息（部署时修改host和scene_id）"""
+    return jsonify(code=200, message='success', data={
+        'host': '',               # DTS云渲染服务器地址（如 '192.168.1.27:8081'）
+        'scene_id': '',           # 雄安CIM场景ID
+        'available': False,       # 是否可用（部署后改为True）
+        'version': 'DTS-Cloud 7.x',
+        'engine': 'Freedo DigitalTwinPlayer',
+        'sdk_file': 'ac.min.js',  # 需放入 frontend/js/ 目录
+    })
