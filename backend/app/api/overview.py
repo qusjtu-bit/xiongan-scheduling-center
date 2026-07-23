@@ -30,22 +30,48 @@ def _get_indicator_val(code):
 def dashboard():
     """态势大屏聚合数据"""
 
-    # ======== 1. 核心指标（与项目实体表联动，避免数据脱钩） ========
+    # ======== 1. 核心指标（从实体表计算，避免数据脱耦） ========
     _all_projects = ProjectInfo.query.all()
     _in_progress = [p for p in _all_projects if p.progress < 100]
     _total_invest_wan = sum((p.invest or 0) for p in _all_projects)  # 万元
+
+    # 本月审批办件量（从审批记录实体表）
+    now = datetime.now()
+    month_start = f'{now.year}-{now.month:02d}'
+    _month_approvals = ApprovalRecord.query.filter(
+        ApprovalRecord.apply_date.like(f'{month_start}%')).all()
+    _month_approved = sum(1 for r in _month_approvals if r.status == '已通过')
+    _month_total = len(_month_approvals)
+
+    # 隐患数 = 市政设施异常数 + 项目逾期数
+    _muni_abnormal = MunicipalNode.query.filter_by(status='异常').count()
+    _today_str = datetime.now().strftime('%Y-%m')
+    _proj_overdue = sum(1 for p in _all_projects
+                        if p.progress < 100 and p.plan_end_date
+                        and p.plan_end_date < _today_str)
+    _hazards = _muni_abnormal + _proj_overdue
+
+    # 整改闭环率 = (已通过审批 + 正常市政设施) / (全部审批 + 全部市政设施)
+    _all_approvals = ApprovalRecord.query.all()
+    _approval_closed = sum(1 for r in _all_approvals if r.status in ('已通过', '已驳回'))
+    _muni_normal = MunicipalNode.query.filter_by(status='正常').count()
+    _muni_total = MunicipalNode.query.count()
+    _closure_total = _approval_closed + _muni_normal
+    _closure_all = len(_all_approvals) + _muni_total
+    _closure_rate = round(_closure_total / _closure_all * 100, 1) if _closure_all else 0
+
     core = {
         'in_progress_projects': len(_in_progress),
-        'month_permits': int(round(_get_indicator_val('cj02') or 0)),
-        'fire_pass_rate': _get_indicator_val('cj03') or 0,
-        'hazards': int(round(_get_indicator_val('cj04') or 0)),
-        'closure_rate': _get_indicator_val('cj05') or 0,
+        'month_permits': _month_total,
+        'month_approved': _month_approved,
+        'fire_pass_rate': round(_month_approved / _month_total * 100, 1) if _month_total else 0,
+        'hazards': _hazards,
+        'muni_abnormal': _muni_abnormal,
+        'proj_overdue': _proj_overdue,
+        'closure_rate': _closure_rate,
         'attendance_rate': _get_indicator_val('cj06') or 0,
         'total_invest': round(_total_invest_wan / 10000, 1),  # 万元 → 亿元
-        'bus_daily_flow': _get_indicator_val('jt05') or 0,
-        'water_quality_rate': _get_indicator_val('sl02') or 0,
-        'road_intact_rate': _get_indicator_val('cg04') or 0,
-        'green_coverage': _get_indicator_val('cg11') or 0,
+        'bus_daily_flow': _get_indicator_val('jt02') or 0,
         'total_projects': len(_all_projects),
         'total_businesses': BusinessLicense.query.count(),
         'total_stations': TransportStation.query.count(),
@@ -57,10 +83,10 @@ def dashboard():
     domain_panels = []
     # 各领域选 6 项核心指标
     domain_configs = {
-        1: ['cj01', 'cj02', 'cj03', 'cj05', 'cj06', 'cj14'],
-        2: ['jt01', 'jt02', 'jt03', 'jt05', 'jt06', 'jt10'],
-        3: ['sl01', 'sl02', 'sl04', 'sl06', 'sl08', 'sl13'],
-        4: ['cg01', 'cg04', 'cg05', 'cg06', 'cg07', 'cg11'],
+        1: ['cj01', 'cj02', 'cj03', 'cj05', 'cj04', 'cj14'],
+        2: ['jt01', 'jt02', 'jt03', 'jt04', 'jt06', 'jt08'],
+        3: ['sl01', 'sl02', 'sl03', 'sl05', 'sl06', 'sl07'],
+        4: ['cg01', 'cg04', 'cg05', 'cg06', 'cg07', 'cg10'],
     }
     for domain in range(1, 5):
         indicators = []
@@ -212,7 +238,7 @@ def core_detail():
             ])
 
     elif code == 'cj02':
-        # 本月办件 — 审批记录
+        # 本月审批办件 — 审批记录明细
         data['title'] = '本月审批办件'
         data['columns'] = ['审批类型', '关联项目', '申请日期', '状态', '审批人']
         now = datetime.now()
@@ -221,6 +247,8 @@ def core_detail():
             ApprovalRecord.apply_date.like(f'{month_start}%')
         ).all()
         proj_map = {p.id: p.name for p in ProjectInfo.query.all()}
+        _approved = sum(1 for r in records if r.status == '已通过')
+        data['summary'] = f'本月共 {len(records)} 件审批，已通过 {_approved} 件'
         for r in records:
             data['rows'].append([
                 r.approval_type, proj_map.get(r.project_id, '-'),
@@ -228,16 +256,14 @@ def core_detail():
             ])
 
     elif code == 'cj03':
-        # 消防验收通过率 — 消防验收记录
-        data['title'] = '消防验收记录'
+        # 审批通过率 — 全部审批记录统计
+        data['title'] = '审批通过率'
         data['columns'] = ['审批类型', '关联项目', '申请日期', '结果', '审批人']
-        records = ApprovalRecord.query.filter(
-            ApprovalRecord.approval_type.like('%消防%')
-        ).all()
+        records = ApprovalRecord.query.all()
         proj_map = {p.id: p.name for p in ProjectInfo.query.all()}
         total = len(records)
         passed = sum(1 for r in records if r.status == '已通过')
-        data['summary'] = f'共 {total} 项，已通过 {passed} 项，通过率 {round(passed/total*100,1) if total else 0}%'
+        data['summary'] = f'共 {total} 项审批，已通过 {passed} 项，通过率 {round(passed/total*100,1) if total else 0}%'
         for r in records:
             data['rows'].append([
                 r.approval_type, proj_map.get(r.project_id, '-'),
@@ -245,37 +271,66 @@ def core_detail():
             ])
 
     elif code == 'cj04':
-        # 隐患数 — 用 IndicatorData 返回近期趋势
-        data['title'] = '隐患统计'
-        data['columns'] = ['周期', '隐患数量']
-        records = IndicatorData.query.filter_by(indicator_code='cj04').order_by(
-            IndicatorData.period.desc()).limit(12).all()
-        for r in records:
-            data['rows'].append([r.period, int(r.value)])
-        ind = Indicator.query.filter_by(code='cj04').first()
-        data['summary'] = ind.definition if ind and ind.definition else ''
+        # 隐患数 — 市政异常设施 + 逾期项目明细清单
+        data['title'] = '隐患清单'
+        data['columns'] = ['隐患来源', '名称', '类型', '状态/风险', '详情']
+        # 市政异常设施
+        for m in MunicipalNode.query.filter_by(status='异常').all():
+            data['rows'].append([
+                '市政设施', m.name, m.ftype, f'状态：异常',
+                f'{m.area or "-"}',
+            ])
+        # 逾期项目
+        _today_str = datetime.now().strftime('%Y-%m')
+        ptype_domain = {'房建': 1, '市政': 1, '交通': 2, '水利': 3, '园林': 4}
+        for p in ProjectInfo.query.all():
+            if p.progress < 100 and p.plan_end_date and p.plan_end_date < _today_str:
+                domain_name = DOMAIN_LABELS.get(ptype_domain.get(p.ptype), '-')
+                data['rows'].append([
+                    f'{domain_name}项目', p.name, p.ptype, '逾期',
+                    f'进度{p.progress}% · {p.stage} · 计划竣工{p.plan_end_date} · 投资{round(p.invest/10000,1)}亿',
+                ])
+        _muni_abnormal = MunicipalNode.query.filter_by(status='异常').count()
+        _proj_overdue = sum(1 for p in ProjectInfo.query.all()
+                           if p.progress < 100 and p.plan_end_date
+                           and p.plan_end_date < _today_str)
+        data['summary'] = f'共 {_muni_abnormal + _proj_overdue} 项隐患（市政异常 {_muni_abnormal} + 项目逾期 {_proj_overdue}）'
 
     elif code == 'cj05':
-        # 整改闭环率 — 近期趋势
-        data['title'] = '整改闭环率'
-        data['columns'] = ['周期', '闭环率(%)']
-        records = IndicatorData.query.filter_by(indicator_code='cj05').order_by(
-            IndicatorData.period.desc()).limit(12).all()
-        for r in records:
-            data['rows'].append([r.period, r.value])
-        ind = Indicator.query.filter_by(code='cj05').first()
-        data['summary'] = ind.definition if ind and ind.definition else ''
+        # 整改闭环率 — 审批+市政设施闭环统计
+        data['title'] = '整改闭环统计'
+        data['columns'] = ['类别', '名称', '状态', '闭环情况']
+        # 审批闭环
+        for r in ApprovalRecord.query.all():
+            closed = r.status in ('已通过', '已驳回')
+            data['rows'].append([
+                '审批', f'{r.approval_type}', r.status,
+                '✅ 已闭环' if closed else '⏳ 待闭环',
+            ])
+        # 市政设施
+        for m in MunicipalNode.query.all():
+            closed = m.status == '正常'
+            data['rows'].append([
+                '市政设施', m.name, m.ftype,
+                '✅ 正常' if closed else '⚠️ 异常待整改',
+            ])
+        _approval_closed = sum(1 for r in ApprovalRecord.query.all() if r.status in ('已通过', '已驳回'))
+        _muni_normal = MunicipalNode.query.filter_by(status='正常').count()
+        _total_items = ApprovalRecord.query.count() + MunicipalNode.query.count()
+        data['summary'] = f'闭环 {_approval_closed + _muni_normal}/{_total_items}，闭环率 {round((_approval_closed + _muni_normal)/_total_items*100,1) if _total_items else 0}%'
 
     elif code == 'cj06':
-        # 考勤率 — 近期趋势
+        # 考勤率 — 近期趋势（保留，该指标无实体表）
         data['title'] = '考勤率统计'
         data['columns'] = ['周期', '考勤率(%)']
         records = IndicatorData.query.filter_by(indicator_code='cj06').order_by(
             IndicatorData.period.desc()).limit(12).all()
         for r in records:
             data['rows'].append([r.period, r.value])
-        ind = Indicator.query.filter_by(code='cj06').first()
-        data['summary'] = ind.definition if ind and ind.definition else ''
+        if not records:
+            data['summary'] = '暂无考勤数据'
+        else:
+            data['summary'] = f'最近考勤率 {records[0].value}%'
 
     elif code == 'cj14':
         # 总投资 — 展示所有项目（按投资降序）

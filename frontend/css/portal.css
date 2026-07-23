@@ -1368,3 +1368,12 @@ body {
   background: rgba(255,77,79,.06);
   border-color: rgba(255,77,79,.2) !important;
 }
+
+/* 消息行可点击 */
+.msg-row-click { cursor: pointer; transition: all .2s ease; }
+.msg-row-click:hover { background: rgba(6,182,212,.04); }
+
+/* 待办行可点击 */
+.todo-row-click { cursor: pointer; transition: all .2s ease; }
+.todo-row-click:hover { background: rgba(6,182,212,.04); }
+

@@ -357,7 +357,7 @@ async function renderMessages() {
       <button class="btn-ghost" onclick="renderMessages()">↻ 刷新</button>
     </div>
     ${list.length ? list.map(m => `
-      <div class="msg-row ${m.is_read ? 'read' : 'unread'}">
+      <div class="msg-row ${m.is_read ? 'read' : 'unread'} msg-row-click" onclick="showMsgDetail(${m.id},'${_esc(m.title)}','${_esc(m.content || '')}','${_esc(m.sender)}','${m.created_at}','${m.msg_type_name}')">
         <div class="msg-ico" style="background:rgba(30,58,111,.4)">${iconMap[m.msg_type] || '📢'}</div>
         <div class="msg-body">
           <div class="msg-title">${m.title} <span class="tag ${typeColor[m.msg_type] || 'tag-gray'}">${m.msg_type_name}</span> ${m.level >= 3 ? '<span class="tag tag-red">紧急</span>' : ''}</div>
@@ -365,8 +365,8 @@ async function renderMessages() {
           <div class="msg-foot"><span>${m.sender}</span><span>${m.created_at}</span></div>
         </div>
         <div class="msg-actions">
-          ${m.is_read ? '' : `<span class="mini-btn" onclick="markRead(${m.id})">标记已读</span>`}
-          <span class="mini-btn danger" onclick="delMsg(${m.id})">删除</span>
+          ${m.is_read ? '' : `<span class="mini-btn" onclick="event.stopPropagation();markRead(${m.id})">标记已读</span>`}
+          <span class="mini-btn danger" onclick="event.stopPropagation();delMsg(${m.id})">删除</span>
         </div>
       </div>`).join('') : '<div class="empty">暂无消息</div>'}
   `;
@@ -387,6 +387,35 @@ async function delMsg(id) {
   await renderMessages();
 }
 
+/* 消息详情弹窗 */
+function showMsgDetail(id, title, content, sender, createdAt, typeName) {
+  showOvModal(title, `
+    <div class="ov-summary-card">
+      <div><strong>发送人</strong><div>${sender}</div></div>
+      <div><strong>时间</strong><div>${createdAt}</div></div>
+      <div><strong>类型</strong><div><span class="tag tag-blue">${typeName}</span></div></div>
+    </div>
+    <div class="ov-section-title">📝 消息内容</div>
+    <p style="color:var(--text-2);font-size:13px;line-height:1.7">${content || '暂无内容'}</p>
+  `, { width: 560 });
+  // 标记已读
+  api('/api/messages/' + id + '/read', { method: 'PUT' }).then(() => updateMsgBadge());
+}
+
+/* 待办详情弹窗 */
+function showTodoDetail(id, title, todoType, dueDate, urgency, source) {
+  showOvModal(title, `
+    <div class="ov-summary-card">
+      <div><strong>待办类型</strong><div><span class="tag tag-gray">${todoType}</span></div></div>
+      <div><strong>紧急程度</strong><div><span class="tag ${urgency === '紧急' ? 'tag-red' : urgency === '高' ? 'tag-orange' : 'tag-blue'}">${urgency}</span></div></div>
+      <div><strong>截止时间</strong><div>${dueDate}</div></div>
+      <div><strong>来源系统</strong><div>${source || '-'}</div></div>
+    </div>
+    <div class="ov-section-title">📝 待办说明</div>
+    <p style="color:var(--text-2);font-size:13px;line-height:1.7">该待办事项需要您及时处理，点击"去处理"按钮可跳转至对应业务系统进行操作。</p>
+  `, { width: 560 });
+}
+
 /* ---------- 待办中心 ---------- */
 async function renderTodos() {
   const data = await api('/api/todos');
@@ -400,7 +429,7 @@ async function renderTodos() {
     const overdue = t.status === 2 || (t.due_date && t.due_date < today && t.status === 0);
     const urgencyTag = t.urgency >= 3 ? 'tag-red' : t.urgency >= 2 ? 'tag-orange' : 'tag-blue';
     return `
-      <div class="todo-row ${t.urgency >= 2 ? 'urgent' : ''}">
+      <div class="todo-row ${t.urgency >= 2 ? 'urgent' : ''} todo-row-click" onclick="showTodoDetail(${t.id},'${_esc(t.title)}','${_esc(t.todo_type_name)}','${t.due_date || '-'}','${t.urgency_name}','${_esc(t.source_system || '')}')">
         <div class="todo-main">
           <div class="todo-title">${t.title}</div>
           <div class="todo-meta">
@@ -410,7 +439,7 @@ async function renderTodos() {
             <span class="todo-due ${overdue ? 'over' : ''}">截止：${t.due_date || '-'} ${overdue ? '· 已逾期' : ''}</span>
           </div>
         </div>
-        <button class="btn-go" onclick="navTo('${t.link || '/todos'}')">去处理</button>
+        <button class="btn-go" onclick="event.stopPropagation();navTo('${t.link || '/todos'}')">去处理</button>
       </div>`;
   }).join('');
   document.getElementById('content').innerHTML = html;
@@ -1940,13 +1969,12 @@ async function renderOverview() {
   // 核心指标项（带 code 和点击）
   const coreItems = [
     { code:'cj01', label:'在建项目', value:d.core.in_progress_projects, unit:'个', color:'var(--cyan)' },
-    { code:'cj02', label:'本月办件', value:d.core.month_permits, unit:'件', color:'var(--blue)' },
-    { code:'cj03', label:'消防验收通过率', value:d.core.fire_pass_rate, unit:'%', color:'var(--green)' },
-    { code:'cj04', label:'隐患数', value:d.core.hazards, unit:'个', color:'var(--orange)' },
+    { code:'cj02', label:'本月审批', value:d.core.month_permits, unit:'件', color:'var(--blue)' },
+    { code:'cj03', label:'审批通过率', value:d.core.fire_pass_rate, unit:'%', color:'var(--green)' },
+    { code:'cj04', label:'隐患数', value:d.core.hazards, unit:'项', color:'var(--orange)' },
     { code:'cj05', label:'整改闭环率', value:d.core.closure_rate, unit:'%', color:'var(--green)' },
-    { code:'cj06', label:'考勤率', value:d.core.attendance_rate, unit:'%', color:'var(--blue)' },
     { code:'cj14', label:'总投资', value:d.core.total_invest, unit:'亿元', color:'var(--cyan)' },
-    { code:'jt05', label:'公交日客流', value:d.core.bus_daily_flow, unit:'万人次', color:'var(--orange)' },
+    { code:'jt05', label:'公交日均客流', value:d.core.bus_daily_flow, unit:'万人次', color:'var(--orange)' },
   ];
 
   // 领域指标面板 HTML（可点击）
@@ -2243,7 +2271,7 @@ async function openCoreDetail(code) {
   // 标题映射
   const labelMap = {
     cj01:'在建项目', cj02:'本月办件', cj03:'消防验收通过率',
-    cj04:'隐患数', cj05:'整改闭环率', cj06:'考勤率',
+    cj04:'隐患数', cj05:'整改闭环率',
     cj14:'总投资', jt05:'公交日客流',
   };
 
